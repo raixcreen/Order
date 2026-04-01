@@ -106,17 +106,15 @@
           <span class="icon">💰</span>
           <span>訂單明細</span>
         </div>
-        <div class="floor-tabs">
-          <button class="floor-tab active" onclick="switchFloor(0, this)">全部</button>
-          <button class="floor-tab" onclick="switchFloor(11, this)">11 樓</button>
-          <button class="floor-tab" onclick="switchFloor(19, this)">19 樓</button>
+        <div class="floor-tabs" id="deptTabs">
+          <button class="floor-tab active" onclick="switchDept('', this)">全部</button>
         </div>
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
                 <th>員工</th>
-                <th>樓層</th>
+                <th>部門</th>
                 <th>品項</th>
                 <th>金額</th>
                 <th></th>
@@ -129,7 +127,7 @@
           <div class="icon">💰</div>
           <p>目前沒有訂單</p>
         </div>
-        <div id="floorSummary" style="margin-top:16px; display:flex; gap:16px; flex-wrap:wrap;"></div>
+        <div id="deptSummary" style="margin-top:16px; display:flex; gap:16px; flex-wrap:wrap;"></div>
       </div>
 
       <!-- 全寬：商家管理 -->
@@ -164,32 +162,16 @@
         </div>
         <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
           <input type="text" id="newEmpName" class="form-control" placeholder="員工姓名" style="flex:2; min-width:140px;">
-          <select id="newEmpFloor" class="form-control" style="flex:1; min-width:100px;">
-            <option value="11">11 樓</option>
-            <option value="19">19 樓</option>
+          <select id="newEmpDept" class="form-control" style="flex:1; min-width:100px;">
+            <option value="管理層">管理層</option>
+            <option value="工程部">工程部</option>
+            <option value="專案部">專案部</option>
+            <option value="其他">其他</option>
           </select>
+          <input type="text" id="newEmpRole" class="form-control" placeholder="職稱（選填）" style="flex:1; min-width:120px;">
           <button class="btn btn-primary" onclick="addEmployeeAction()">新增員工</button>
         </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
-          <div>
-            <div style="font-weight:700; margin-bottom:8px;"><span class="badge badge-floor11">11 樓</span> <span id="empCount11" style="font-size:.8rem; color:var(--gray-400); font-weight:400;"></span></div>
-            <div class="table-wrap">
-              <table>
-                <thead><tr><th>姓名</th><th></th></tr></thead>
-                <tbody id="empBody11"></tbody>
-              </table>
-            </div>
-          </div>
-          <div>
-            <div style="font-weight:700; margin-bottom:8px;"><span class="badge badge-floor19">19 樓</span> <span id="empCount19" style="font-size:.8rem; color:var(--gray-400); font-weight:400;"></span></div>
-            <div class="table-wrap">
-              <table>
-                <thead><tr><th>姓名</th><th></th></tr></thead>
-                <tbody id="empBody19"></tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+        <div id="empDeptList"></div>
       </div>
 
     </div><!-- /.two-col-grid -->

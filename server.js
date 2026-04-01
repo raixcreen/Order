@@ -22,7 +22,8 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS employees (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
-    floor INTEGER NOT NULL
+    department TEXT NOT NULL DEFAULT '',
+    role TEXT NOT NULL DEFAULT ''
   );
 
   CREATE TABLE IF NOT EXISTS vendors (
@@ -52,7 +53,7 @@ db.exec(`
     date TEXT NOT NULL,
     employee_id TEXT NOT NULL,
     employee_name TEXT NOT NULL,
-    floor INTEGER,
+    department TEXT DEFAULT '',
     total INTEGER NOT NULL DEFAULT 0,
     paid INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL
@@ -89,16 +90,16 @@ function todayStr() {
 
 /* ===== 員工 API ===== */
 app.get('/api/employees', (req, res) => {
-  const rows = db.prepare('SELECT * FROM employees ORDER BY floor, name').all();
+  const rows = db.prepare('SELECT * FROM employees ORDER BY department, name').all();
   res.json(rows);
 });
 
 app.post('/api/employees', (req, res) => {
-  const { name, floor } = req.body;
+  const { name, department, role } = req.body;
   if (!name) return res.status(400).json({ error: '請輸入員工姓名' });
   const id = genId();
-  db.prepare('INSERT INTO employees (id, name, floor) VALUES (?, ?, ?)').run(id, name, floor || 11);
-  res.json({ id, name, floor: floor || 11 });
+  db.prepare('INSERT INTO employees (id, name, department, role) VALUES (?, ?, ?, ?)').run(id, name, department || '', role || '');
+  res.json({ id, name, department: department || '', role: role || '' });
 });
 
 app.delete('/api/employees/:id', (req, res) => {
@@ -198,6 +199,7 @@ app.get('/api/orders/:date', (req, res) => {
   orders.forEach(o => {
     o.employeeId = o.employee_id;
     o.employeeName = o.employee_name;
+    o.department = o.department || '';
     o.createdAt = o.created_at;
     o.items = allItems.filter(i => i.order_id === o.id).map(i => ({
       menuItemId: i.menu_item_id,
@@ -210,15 +212,15 @@ app.get('/api/orders/:date', (req, res) => {
 });
 
 app.post('/api/orders/:date', (req, res) => {
-  const { employeeId, employeeName, floor, items, total } = req.body;
+  const { employeeId, employeeName, department, items, total } = req.body;
   const id = genId();
   const createdAt = new Date().toISOString();
   db.prepare(
-    'INSERT INTO orders (id, date, employee_id, employee_name, floor, total, paid, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?)'
-  ).run(id, req.params.date, employeeId, employeeName, floor, total, createdAt);
+    'INSERT INTO orders (id, date, employee_id, employee_name, department, total, paid, created_at) VALUES (?, ?, ?, ?, ?, ?, 0, ?)'
+  ).run(id, req.params.date, employeeId, employeeName, department || '', total, createdAt);
   const insert = db.prepare('INSERT INTO order_items (order_id, menu_item_id, name, price, qty) VALUES (?, ?, ?, ?, ?)');
   items.forEach(it => insert.run(id, it.menuItemId, it.name, it.price, it.qty));
-  res.json({ id, employeeId, employeeName, floor, items, total, paid: false, createdAt });
+  res.json({ id, employeeId, employeeName, department, items, total, paid: false, createdAt });
 });
 
 app.put('/api/orders/:date/:id', (req, res) => {
@@ -266,15 +268,26 @@ app.put('/api/settings/:date', (req, res) => {
 const empCount = db.prepare('SELECT COUNT(*) as c FROM employees').get().c;
 if (empCount === 0) {
   const defaults = [
-    { name: '王小明', floor: 11 },
-    { name: '李小華', floor: 11 },
-    { name: '張大偉', floor: 11 },
-    { name: '陳美玲', floor: 19 },
-    { name: '林志豪', floor: 19 },
-    { name: '黃雅琪', floor: 19 },
+    { name: '葉泉亨 Adam', department: '管理層', role: '資通安全長' },
+    { name: '楊松樺 David', department: '管理層', role: '資安主管' },
+    { name: '陳彥丞 Leon', department: '管理層', role: '資安承辦' },
+    { name: '張劭艾 Alex', department: '管理層', role: '資安小組 / 單位主管 / 稽核' },
+    { name: '龔怡貞 Ada', department: '管理層', role: '專案部主管' },
+    { name: '施玟安 Anna', department: '管理層', role: '內部稽核' },
+    { name: '李泰成 Daniel', department: '工程部', role: 'RD技術人員' },
+    { name: '蘇韋嫡 Wendy', department: '工程部', role: 'RD技術人員' },
+    { name: '呂世宥 Lasy', department: '工程部', role: 'RD技術人員' },
+    { name: '周柏叡 Ray', department: '工程部', role: '標記工程師' },
+    { name: '陳恆中 Chen', department: '工程部', role: '標記工程師' },
+    { name: '李亞翰 Hank', department: '工程部', role: '標記工程師' },
+    { name: '何嘉嘉 Jasmine', department: '專案部', role: '專案經理' },
+    { name: '劉謙玉 Sandy', department: '專案部', role: '專案經理' },
+    { name: '楊清逸 Serene', department: '專案部', role: '專案經理' },
+    { name: '李欣樺 Mico', department: '其他', role: '設計師' },
+    { name: '林芯敏 Sidney', department: '其他', role: '會計師' },
   ];
-  const insert = db.prepare('INSERT INTO employees (id, name, floor) VALUES (?, ?, ?)');
-  defaults.forEach(e => insert.run(genId(), e.name, e.floor));
+  const insert = db.prepare('INSERT INTO employees (id, name, department, role) VALUES (?, ?, ?, ?)');
+  defaults.forEach(e => insert.run(genId(), e.name, e.department, e.role));
   console.log('已初始化預設員工資料');
 }
 
