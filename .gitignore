@@ -1,3 +1,6 @@
 node_modules/
-order.db
+data/
+*.db
+*.db-shm
+*.db-wal
 .DS_Store

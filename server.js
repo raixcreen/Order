@@ -11,7 +11,10 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 /* ===== 資料庫初始化 ===== */
-const db = new Database(path.join(__dirname, 'order.db'));
+const fs = require('fs');
+const dataDir = path.join(__dirname, 'data');
+if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+const db = new Database(path.join(dataDir, 'order.db'));
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 

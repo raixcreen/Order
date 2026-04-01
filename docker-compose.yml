@@ -1,0 +1,14 @@
+services:
+  order:
+    build: .
+    container_name: order-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - order-data:/app/data
+    environment:
+      - NODE_ENV=production
+
+volumes:
+  order-data:
