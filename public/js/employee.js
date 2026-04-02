@@ -92,9 +92,10 @@ async function loadExistingOrder() {
 /* ---------- 截止時間檢查 ---------- */
 async function checkDeadline() {
   const banner = document.getElementById('deadlineBanner');
+  const row = document.getElementById('deadlineRow');
   const dl = await DB.getDeadline();
 
-  banner.style.display = 'block';
+  row.style.display = 'flex';
 
   if (!dl) {
     banner.style.background = 'var(--gray-100)';
@@ -115,6 +116,21 @@ async function checkDeadline() {
     banner.style.background = 'var(--danger-light)';
     banner.style.color = '#991B1B';
     banner.textContent = `點餐已截止（${dl}），無法再下單`;
+  }
+
+  // 商家備註
+  const noteEl = document.getElementById('vendorNote');
+  const vendorId = await DB.getVendorOfDay();
+  if (vendorId) {
+    const vendor = await DB.getVendor(vendorId);
+    if (vendor && vendor.note) {
+      noteEl.textContent = vendor.note;
+      noteEl.style.display = 'block';
+    } else {
+      noteEl.style.display = 'none';
+    }
+  } else {
+    noteEl.style.display = 'none';
   }
 }
 
@@ -352,6 +368,25 @@ function toggleOrderDetail() {
   const isHidden = detail.style.display === 'none';
   detail.style.display = isHidden ? 'block' : 'none';
   toggle.style.transform = isHidden ? 'rotate(180deg)' : '';
+}
+
+/* ---------- 自訂品項 ---------- */
+async function addCustomItem() {
+  if (orderClosed) { showToast('點餐已截止', 'error'); return; }
+  const nameEl = document.getElementById('customItemName');
+  const priceEl = document.getElementById('customItemPrice');
+  const name = nameEl.value.trim();
+  const price = parseInt(priceEl.value);
+  if (!name) { showToast('請輸入品項名稱', 'error'); return; }
+  if (!price || price <= 0) { showToast('請輸入正確金額', 'error'); return; }
+
+  const item = await DB.addMenuItem({ name, price });
+  cart[item.id] = 1;
+  nameEl.value = '';
+  priceEl.value = '';
+  await renderMenu();
+  await updateSummary();
+  showToast(`已加入「${name}」`);
 }
 
 /* ---------- 工具 ---------- */

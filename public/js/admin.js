@@ -31,6 +31,7 @@ async function refreshAll() {
     renderOrders(),
   ]);
   await renderStats();
+  await updateVendorLock();
 }
 
 /* ========== 員工管理 ========== */
@@ -55,7 +56,6 @@ async function renderEmployees() {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${escHtml(emp.name)}</td>
-        <td style="color:var(--gray-500); font-size:.85rem;">${escHtml(emp.role || '')}</td>
         <td>
           <button class="btn btn-ghost btn-sm" onclick="deleteEmployeeAction('${emp.id}')" title="刪除">&#128465;</button>
         </td>
@@ -71,16 +71,13 @@ async function renderEmployees() {
 async function addEmployeeAction() {
   const nameEl = document.getElementById('newEmpName');
   const floorEl = document.getElementById('newEmpFloor');
-  const roleEl = document.getElementById('newEmpRole');
   const name = nameEl.value.trim();
   const floor = parseInt(floorEl.value);
-  const role = roleEl.value.trim();
 
   if (!name) { showToast('請輸入員工姓名', 'error'); return; }
 
-  await DB.addEmployee({ name, floor, role });
+  await DB.addEmployee({ name, floor });
   nameEl.value = '';
-  roleEl.value = '';
   await refreshAll();
   showToast('員工已新增');
 }
@@ -97,7 +94,6 @@ function switchFloor(floor, btn) {
   document.querySelectorAll('.floor-tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
   renderOrders();
-  renderStats();
 }
 
 async function renderOrders() {
@@ -126,7 +122,6 @@ async function renderOrders() {
     const emp = employees.find(e => e.id === order.employeeId);
     const floor = emp ? emp.floor : order.floor || '?';
     const itemsStr = order.items.map(it => `${it.name} x${it.qty}`).join('、');
-
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${escHtml(order.employeeName || (emp ? emp.name : '未知'))}</td>
@@ -181,16 +176,7 @@ async function renderFloorSummary() {
 
 /* ========== 統計 ========== */
 async function renderStats() {
-  let orders = await DB.getOrders(selectedDate);
-  const employees = await DB.getEmployees();
-
-  if (currentFloorFilter > 0) {
-    orders = orders.filter(o => {
-      const emp = employees.find(e => e.id === o.employeeId);
-      return emp && emp.floor === currentFloorFilter;
-    });
-  }
-
+  const orders = await DB.getOrders(selectedDate);
   const total = orders.reduce((s, o) => s + o.total, 0);
 
   document.getElementById('statOrders').textContent = orders.length;
@@ -269,8 +255,6 @@ function handleMenuImgFile(file) {
   reader.onload = async function(e) {
     compressImage(e.target.result, 1200, 0.8, async function(compressed) {
       await DB.setMenuImage(compressed, selectedDate);
-      const vendorId = document.getElementById('vendorQuickSelect').value;
-      if (vendorId) await DB.updateVendor(vendorId, { image: compressed });
       await refreshAll();
       showToast('菜單圖片已上傳');
     });
@@ -295,8 +279,6 @@ function compressImage(dataUrl, maxWidth, quality, callback) {
 async function clearMenuImageAction() {
   await DB.clearMenuImage(selectedDate);
   document.getElementById('menuImgInput').value = '';
-  const vendorId = document.getElementById('vendorQuickSelect').value;
-  if (vendorId) await DB.updateVendor(vendorId, { image: '' });
   await refreshAll();
   showToast('菜單圖片已移除');
 }
@@ -454,9 +436,13 @@ async function addVendorAction() {
 }
 
 async function deleteVendorAction(id) {
-  await DB.deleteVendor(id);
-  await refreshAll();
-  showToast('商家已刪除');
+  const vendor = await DB.getVendor(id);
+  const name = vendor ? vendor.name : '此商家';
+  openModal('刪除商家', `確定要刪除「${name}」嗎？此操作無法復原。`, async () => {
+    await DB.deleteVendor(id);
+    await refreshAll();
+    showToast('商家已刪除');
+  });
 }
 
 async function updateVendorPhone(id, phone) {
@@ -475,9 +461,8 @@ function uploadVendorImage(vendorId, file) {
   reader.onload = function(e) {
     compressImage(e.target.result, 1200, 0.8, async function(compressed) {
       await DB.updateVendor(vendorId, { image: compressed });
-      await DB.setMenuImage(compressed, selectedDate);
       await refreshAll();
-      showToast('菜單圖片已更新');
+      showToast('商家圖片已更新');
     });
   };
   reader.readAsDataURL(file);
@@ -485,9 +470,8 @@ function uploadVendorImage(vendorId, file) {
 
 async function removeVendorImage(vendorId) {
   await DB.updateVendor(vendorId, { image: '' });
-  await DB.clearMenuImage(selectedDate);
   await refreshAll();
-  showToast('菜單圖片已移除');
+  showToast('商家圖片已移除');
 }
 
 async function deleteVendorMenuItem(vendorId, index) {
@@ -514,6 +498,38 @@ async function addVendorMenuItem(vendorId) {
   priceEl.value = '';
   await refreshAll();
   showToast('品項已加入商家菜單');
+}
+
+async function updateVendorLock() {
+  const orders = await DB.getOrders(selectedDate);
+  const locked = orders.length > 0;
+
+  const sel = document.getElementById('vendorQuickSelect');
+  const btn = document.querySelector('[onclick="loadVendorMenu()"]');
+  const clearBtn = document.getElementById('clearOrdersBtn');
+
+  sel.disabled = locked;
+  if (btn) btn.disabled = locked;
+  if (clearBtn) clearBtn.style.display = locked ? 'inline-block' : 'none';
+
+  if (locked) {
+    sel.title = '已有訂單，無法切換商家';
+    if (btn) btn.title = '已有訂單，無法載入菜單';
+  } else {
+    sel.title = '';
+    if (btn) btn.title = '';
+  }
+}
+
+async function clearAllOrdersAction() {
+  const orders = await DB.getOrders(selectedDate);
+  openModal('清空訂單', `確定要清空 ${selectedDate} 的全部 ${orders.length} 筆訂單嗎？此操作無法復原。`, async () => {
+    for (const o of orders) {
+      await DB.deleteOrder(o.id, selectedDate);
+    }
+    await refreshAll();
+    showToast('所有訂單已清空');
+  });
 }
 
 async function loadVendorMenu() {

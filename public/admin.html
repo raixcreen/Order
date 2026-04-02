@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>瑞艾呷奔趣 - 後台</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍱</text></svg>">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -38,6 +39,7 @@
           <option value="">-- 載入商家 --</option>
         </select>
         <button class="btn btn-primary btn-sm" onclick="loadVendorMenu()">載入菜單</button>
+        <button class="btn btn-danger btn-sm" id="clearOrdersBtn" style="display:none;" onclick="clearAllOrdersAction()">清空訂單</button>
       </div>
     </div>
 
@@ -168,7 +170,6 @@
             <option value="11">11 樓</option>
             <option value="19">19 樓</option>
           </select>
-          <input type="text" id="newEmpRole" class="form-control" placeholder="職稱（選填）" style="flex:1; min-width:120px;">
           <button class="btn btn-primary" onclick="addEmployeeAction()">新增員工</button>
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
@@ -176,7 +177,7 @@
             <div style="font-weight:700; margin-bottom:8px;"><span class="badge badge-floor11">11 樓</span> <span id="empCount11" style="font-size:.8rem; color:var(--gray-400); font-weight:400;"></span></div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>姓名</th><th>職稱</th><th></th></tr></thead>
+                <thead><tr><th>姓名</th><th></th></tr></thead>
                 <tbody id="empBody11"></tbody>
               </table>
             </div>
@@ -185,7 +186,7 @@
             <div style="font-weight:700; margin-bottom:8px;"><span class="badge badge-floor19">19 樓</span> <span id="empCount19" style="font-size:.8rem; color:var(--gray-400); font-weight:400;"></span></div>
             <div class="table-wrap">
               <table>
-                <thead><tr><th>姓名</th><th>職稱</th><th></th></tr></thead>
+                <thead><tr><th>姓名</th><th></th></tr></thead>
                 <tbody id="empBody19"></tbody>
               </table>
             </div>
