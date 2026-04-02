@@ -67,12 +67,12 @@ const DB = {
   async deleteOrder(id, date) {
     await fetch(`${API}/api/orders/${date || todayStr()}/${id}`, { method: 'DELETE' });
   },
-  async getOrdersByDept(department, date) {
+  async getOrdersByFloor(floor, date) {
     const orders = await this.getOrders(date);
     const employees = await this.getEmployees();
     return orders.filter(o => {
       const emp = employees.find(e => e.id === o.employeeId);
-      return emp && emp.department === department;
+      return emp && emp.floor === floor;
     });
   },
 

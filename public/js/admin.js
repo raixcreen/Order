@@ -1,6 +1,6 @@
 /* ===== 管理後台邏輯 ===== */
 
-let currentDeptFilter = '';
+let currentFloorFilter = 0;
 let selectedDate = todayStr();
 
 /* ---------- 初始化 ---------- */
@@ -38,40 +38,19 @@ async function renderEmployees() {
   const employees = await DB.getEmployees();
   employees.sort((a, b) => a.name.localeCompare(b.name, 'zh-TW'));
 
+  const f11 = employees.filter(e => e.floor === 11);
+  const f19 = employees.filter(e => e.floor === 19);
+
   document.getElementById('empCount').textContent = `共 ${employees.length} 人`;
+  document.getElementById('empCount11').textContent = `${f11.length} 人`;
+  document.getElementById('empCount19').textContent = `${f19.length} 人`;
 
-  const depts = {};
-  employees.forEach(e => {
-    const dept = e.department || '未分類';
-    if (!depts[dept]) depts[dept] = [];
-    depts[dept].push(e);
-  });
+  const tbody11 = document.getElementById('empBody11');
+  const tbody19 = document.getElementById('empBody19');
+  tbody11.innerHTML = '';
+  tbody19.innerHTML = '';
 
-  const container = document.getElementById('empDeptList');
-  container.innerHTML = '';
-
-  const deptOrder = ['管理層', '工程部', '專案部', '其他'];
-  const allDepts = [...new Set([...deptOrder, ...Object.keys(depts)])];
-
-  allDepts.forEach(dept => {
-    const list = depts[dept];
-    if (!list || list.length === 0) return;
-
-    const section = document.createElement('div');
-    section.style.marginBottom = '16px';
-    section.innerHTML = `
-      <div style="font-weight:700; margin-bottom:8px;">
-        <span class="badge" style="background:var(--gray-100); color:var(--gray-700);">${escHtml(dept)}</span>
-        <span style="font-size:.8rem; color:var(--gray-400); font-weight:400;">${list.length} 人</span>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>姓名</th><th>職稱</th><th></th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    `;
-    const tbody = section.querySelector('tbody');
+  function renderList(list, tbody) {
     list.forEach(emp => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
@@ -83,21 +62,23 @@ async function renderEmployees() {
       `;
       tbody.appendChild(tr);
     });
-    container.appendChild(section);
-  });
+  }
+
+  renderList(f11, tbody11);
+  renderList(f19, tbody19);
 }
 
 async function addEmployeeAction() {
   const nameEl = document.getElementById('newEmpName');
-  const deptEl = document.getElementById('newEmpDept');
+  const floorEl = document.getElementById('newEmpFloor');
   const roleEl = document.getElementById('newEmpRole');
   const name = nameEl.value.trim();
-  const department = deptEl.value;
+  const floor = parseInt(floorEl.value);
   const role = roleEl.value.trim();
 
   if (!name) { showToast('請輸入員工姓名', 'error'); return; }
 
-  await DB.addEmployee({ name, department, role });
+  await DB.addEmployee({ name, floor, role });
   nameEl.value = '';
   roleEl.value = '';
   await refreshAll();
@@ -111,30 +92,22 @@ async function deleteEmployeeAction(id) {
 }
 
 /* ========== 訂單明細 ========== */
-async function switchDept(dept, btn) {
-  currentDeptFilter = dept;
+function switchFloor(floor, btn) {
+  currentFloorFilter = floor;
   document.querySelectorAll('.floor-tab').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
-  await renderOrders();
-  await renderStats();
+  renderOrders();
+  renderStats();
 }
 
 async function renderOrders() {
   let orders = await DB.getOrders(selectedDate);
   const employees = await DB.getEmployees();
 
-  // 動態建立部門 tabs
-  const depts = [...new Set(employees.map(e => e.department).filter(Boolean))];
-  const tabsContainer = document.getElementById('deptTabs');
-  tabsContainer.innerHTML = `<button class="floor-tab ${currentDeptFilter === '' ? 'active' : ''}" onclick="switchDept('', this)">全部</button>`;
-  depts.forEach(d => {
-    tabsContainer.innerHTML += `<button class="floor-tab ${currentDeptFilter === d ? 'active' : ''}" onclick="switchDept('${escHtml(d)}', this)">${escHtml(d)}</button>`;
-  });
-
-  if (currentDeptFilter) {
+  if (currentFloorFilter > 0) {
     orders = orders.filter(o => {
       const emp = employees.find(e => e.id === o.employeeId);
-      return emp && emp.department === currentDeptFilter;
+      return emp && emp.floor === currentFloorFilter;
     });
   }
 
@@ -144,20 +117,20 @@ async function renderOrders() {
 
   if (orders.length === 0) {
     empty.style.display = 'block';
-    document.getElementById('deptSummary').innerHTML = '';
+    document.getElementById('floorSummary').innerHTML = '';
     return;
   }
   empty.style.display = 'none';
 
   orders.forEach(order => {
     const emp = employees.find(e => e.id === order.employeeId);
-    const dept = emp ? emp.department : order.department || '?';
+    const floor = emp ? emp.floor : order.floor || '?';
     const itemsStr = order.items.map(it => `${it.name} x${it.qty}`).join('、');
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${escHtml(order.employeeName || (emp ? emp.name : '未知'))}</td>
-      <td><span class="badge" style="background:var(--gray-100); color:var(--gray-700);">${escHtml(dept)}</span></td>
+      <td><span class="badge badge-floor${floor}">${floor} 樓</span></td>
       <td>${escHtml(itemsStr)}</td>
       <td><strong>${formatPrice(order.total)}</strong></td>
       <td>
@@ -167,7 +140,7 @@ async function renderOrders() {
     tbody.appendChild(tr);
   });
 
-  await renderDeptSummary();
+  await renderFloorSummary();
 }
 
 async function deleteOrderAction(id) {
@@ -176,26 +149,26 @@ async function deleteOrderAction(id) {
   showToast('訂單已刪除');
 }
 
-/* ========== 部門小計 ========== */
-async function renderDeptSummary() {
-  const container = document.getElementById('deptSummary');
+/* ========== 樓層小計 ========== */
+async function renderFloorSummary() {
+  const container = document.getElementById('floorSummary');
   const allOrders = await DB.getOrders(selectedDate);
   const employees = await DB.getEmployees();
 
-  const depts = [...new Set(employees.map(e => e.department).filter(Boolean))];
+  const floors = [11, 19];
   let html = '';
 
-  depts.forEach(dept => {
-    const deptOrders = allOrders.filter(o => {
+  floors.forEach(f => {
+    const floorOrders = allOrders.filter(o => {
       const emp = employees.find(e => e.id === o.employeeId);
-      return emp && emp.department === dept;
+      return emp && emp.floor === f;
     });
-    const total = deptOrders.reduce((s, o) => s + o.total, 0);
-    const count = deptOrders.length;
+    const total = floorOrders.reduce((s, o) => s + o.total, 0);
+    const count = floorOrders.length;
 
     html += `
-      <div style="flex:1; min-width:160px; background:var(--gray-50); border-radius:8px; padding:16px;">
-        <strong class="badge" style="background:var(--gray-100); color:var(--gray-700);">${escHtml(dept)}</strong>
+      <div style="flex:1; min-width:200px; background:var(--gray-50); border-radius:8px; padding:16px;">
+        <strong class="badge badge-floor${f}">${f} 樓</strong>
         <div style="margin-top:8px; font-size:.9rem; color:var(--gray-600);">
           訂單：${count} 筆　金額：<strong>${formatPrice(total)}</strong>
         </div>
@@ -211,10 +184,10 @@ async function renderStats() {
   let orders = await DB.getOrders(selectedDate);
   const employees = await DB.getEmployees();
 
-  if (currentDeptFilter) {
+  if (currentFloorFilter > 0) {
     orders = orders.filter(o => {
       const emp = employees.find(e => e.id === o.employeeId);
-      return emp && emp.department === currentDeptFilter;
+      return emp && emp.floor === currentFloorFilter;
     });
   }
 

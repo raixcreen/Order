@@ -28,7 +28,7 @@ async function populateEmployeeSelect() {
   employees.forEach(emp => {
     const opt = document.createElement('option');
     opt.value = emp.id;
-    opt.textContent = emp.name + '（' + emp.department + '）';
+    opt.textContent = emp.name + '（' + emp.floor + 'F）';
     sel.appendChild(opt);
   });
 }
@@ -43,7 +43,7 @@ async function employeeLogin() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('orderScreen').style.display = 'block';
   document.getElementById('empInfo').textContent =
-    currentEmployee.name + '（' + currentEmployee.department + '）';
+    currentEmployee.name + '（' + currentEmployee.floor + 'F）';
 
   document.getElementById('menuImageContent').style.display = 'block';
   document.getElementById('menuImageToggle').style.transform = '';
@@ -263,7 +263,7 @@ async function submitOrder() {
     const order = await DB.addOrder({
       employeeId: currentEmployee.id,
       employeeName: currentEmployee.name,
-      department: currentEmployee.department,
+      floor: currentEmployee.floor,
       items,
       total
     });
