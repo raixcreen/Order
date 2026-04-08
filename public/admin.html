@@ -134,61 +134,67 @@
         <div id="floorSummary" style="margin-top:16px; display:flex; gap:16px; flex-wrap:wrap;"></div>
       </div>
 
-      <!-- 全寬：商家管理 -->
+      <!-- 全寬：商家管理（可收合） -->
       <div class="card full-width">
-        <div class="card-title">
+        <div class="card-title" onclick="toggleSection('vendorSection', 'vendorToggle')" style="cursor:pointer; user-select:none;">
           <span class="icon">🗂️</span>
           <span>商家管理</span>
           <span id="vendorCount" style="margin-left:auto; font-size:.8rem; color:var(--gray-400); font-weight:400;"></span>
+          <span id="vendorToggle" style="margin-left:8px; font-size:.75rem; color:var(--gray-400); transition:transform .2s; transform:rotate(-90deg);">▼</span>
         </div>
-        <p style="font-size:.85rem; color:var(--gray-500); margin-bottom:12px;">
-          保存常用商家與菜單，日後選商家即可快速載入
-        </p>
-        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
-          <input type="text" id="newVendorName" class="form-control" placeholder="商家名稱" style="flex:2; min-width:100px;">
-          <input type="text" id="newVendorPhone" class="form-control" placeholder="電話（選填）" style="flex:1; min-width:100px;">
-          <input type="text" id="newVendorNote" class="form-control" placeholder="備註（選填）" style="flex:2; min-width:120px;">
-          <button class="btn btn-primary" onclick="addVendorAction()">新增商家</button>
-        </div>
-        <div id="vendorList"></div>
-        <div id="vendorEmpty" class="empty-state" style="display:none">
-          <div class="icon">🗂️</div>
-          <p>尚未新增商家</p>
+        <div id="vendorSection" style="display:none;">
+          <p style="font-size:.85rem; color:var(--gray-500); margin-bottom:12px;">
+            保存常用商家與菜單，日後選商家即可快速載入
+          </p>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
+            <input type="text" id="newVendorName" class="form-control" placeholder="商家名稱" style="flex:2; min-width:100px;">
+            <input type="text" id="newVendorPhone" class="form-control" placeholder="電話（選填）" style="flex:1; min-width:100px;">
+            <input type="text" id="newVendorNote" class="form-control" placeholder="備註（選填）" style="flex:2; min-width:120px;">
+            <button class="btn btn-primary" onclick="addVendorAction()">新增商家</button>
+          </div>
+          <div id="vendorList"></div>
+          <div id="vendorEmpty" class="empty-state" style="display:none">
+            <div class="icon">🗂️</div>
+            <p>尚未新增商家</p>
+          </div>
         </div>
       </div>
 
-      <!-- 全寬：員工管理 -->
+      <!-- 全寬：員工管理（可收合） -->
       <div class="card full-width">
-        <div class="card-title">
+        <div class="card-title" onclick="toggleSection('empSection', 'empToggle')" style="cursor:pointer; user-select:none;">
           <span class="icon">😊</span>
           <span>員工管理</span>
           <span id="empCount" style="margin-left:auto; font-size:.8rem; color:var(--gray-400); font-weight:400;"></span>
+          <span id="empToggle" style="margin-left:8px; font-size:.75rem; color:var(--gray-400); transition:transform .2s; transform:rotate(-90deg);">▼</span>
         </div>
-        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
-          <input type="text" id="newEmpName" class="form-control" placeholder="員工姓名" style="flex:2; min-width:140px;">
-          <select id="newEmpFloor" class="form-control" style="flex:1; min-width:100px;">
-            <option value="11">11 樓</option>
-            <option value="19">19 樓</option>
-          </select>
-          <button class="btn btn-primary" onclick="addEmployeeAction()">新增員工</button>
-        </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
-          <div>
-            <div style="font-weight:700; margin-bottom:8px;"><span class="badge badge-floor11">11 樓</span> <span id="empCount11" style="font-size:.8rem; color:var(--gray-400); font-weight:400;"></span></div>
-            <div class="table-wrap">
-              <table>
-                <thead><tr><th>姓名</th><th></th></tr></thead>
-                <tbody id="empBody11"></tbody>
-              </table>
-            </div>
+        <div id="empSection" style="display:none;">
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
+            <input type="text" id="newEmpName" class="form-control" placeholder="員工姓名" style="flex:2; min-width:140px;">
+            <select id="newEmpFloor" class="form-control" style="flex:1; min-width:100px;">
+              <option value="11">11 樓</option>
+              <option value="19">19 樓</option>
+            </select>
+            <button class="btn btn-primary" onclick="addEmployeeAction()">新增員工</button>
           </div>
-          <div>
-            <div style="font-weight:700; margin-bottom:8px;"><span class="badge badge-floor19">19 樓</span> <span id="empCount19" style="font-size:.8rem; color:var(--gray-400); font-weight:400;"></span></div>
-            <div class="table-wrap">
-              <table>
-                <thead><tr><th>姓名</th><th></th></tr></thead>
-                <tbody id="empBody19"></tbody>
-              </table>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+            <div>
+              <div style="font-weight:700; margin-bottom:8px;"><span class="badge badge-floor11">11 樓</span> <span id="empCount11" style="font-size:.8rem; color:var(--gray-400); font-weight:400;"></span></div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>姓名</th><th></th></tr></thead>
+                  <tbody id="empBody11"></tbody>
+                </table>
+              </div>
+            </div>
+            <div>
+              <div style="font-weight:700; margin-bottom:8px;"><span class="badge badge-floor19">19 樓</span> <span id="empCount19" style="font-size:.8rem; color:var(--gray-400); font-weight:400;"></span></div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>姓名</th><th></th></tr></thead>
+                  <tbody id="empBody19"></tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>

@@ -67,6 +67,11 @@ const DB = {
   async deleteOrder(id, date) {
     await fetch(`${API}/api/orders/${date || todayStr()}/${id}`, { method: 'DELETE' });
   },
+  async getOrderDates(employeeId) {
+    const url = employeeId ? `${API}/api/order-dates?employeeId=${employeeId}` : `${API}/api/order-dates`;
+    const res = await fetch(url);
+    return res.json();
+  },
   async getOrdersByFloor(floor, date) {
     const orders = await this.getOrders(date);
     const employees = await this.getEmployees();

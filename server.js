@@ -257,6 +257,18 @@ app.delete('/api/orders/:date/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+/* ===== 歷史訂單日期 API ===== */
+app.get('/api/order-dates', (req, res) => {
+  const employeeId = req.query.employeeId;
+  let rows;
+  if (employeeId) {
+    rows = db.prepare('SELECT DISTINCT date FROM orders WHERE employee_id = ? ORDER BY date DESC').all(employeeId);
+  } else {
+    rows = db.prepare('SELECT DISTINCT date FROM orders ORDER BY date DESC').all();
+  }
+  res.json(rows.map(r => r.date));
+});
+
 /* ===== 每日設定 API（截止時間、商家、菜單圖片） ===== */
 app.get('/api/settings/:date', (req, res) => {
   const rows = db.prepare('SELECT key, value FROM daily_settings WHERE date = ?').all(req.params.date);

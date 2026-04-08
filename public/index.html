@@ -96,6 +96,17 @@
         </div>
       </div>
     </div>
+    <!-- 歷史訂單 -->
+    <div id="historyCard" class="card" style="display:none;">
+      <div class="card-title" onclick="toggleHistoryDetail()" style="cursor:pointer; user-select:none;">
+        <span class="icon">&#128197;</span>
+        <span>歷史訂單</span>
+        <span id="historyToggle" style="margin-left:auto; font-size:.8rem; color:var(--gray-400); transition:transform .2s; transform:rotate(-90deg);">&#9660;</span>
+      </div>
+      <div id="historyDetail" style="display:none;">
+        <div id="historyList"></div>
+      </div>
+    </div>
   </div>
 
   <!-- 底部訂單摘要 -->

@@ -45,12 +45,13 @@ async function employeeLogin() {
   document.getElementById('empInfo').textContent =
     currentEmployee.name + '（' + currentEmployee.floor + 'F）';
 
-  document.getElementById('menuImageContent').style.display = 'block';
-  document.getElementById('menuImageToggle').style.transform = '';
+  document.getElementById('menuImageContent').style.display = 'none';
+  document.getElementById('menuImageToggle').style.transform = 'rotate(-90deg)';
 
   await loadExistingOrder();
   await renderMenu();
   await renderMyOrders();
+  await renderHistory();
 
   if (deadlineTimer) clearInterval(deadlineTimer);
   deadlineTimer = setInterval(() => { renderMenu(); }, 30000);
@@ -250,6 +251,7 @@ async function submitOrder() {
   if (orderClosed) { showToast('點餐已截止，無法下單', 'error'); return; }
   if (Object.keys(cart).length === 0) {
     if (editingOrderId) {
+      if (!confirm('確定要取消訂單嗎？此操作無法復原。')) return;
       await DB.deleteOrder(editingOrderId);
       editingOrderId = null;
       await renderMenu();
@@ -387,6 +389,60 @@ async function addCustomItem() {
   await renderMenu();
   await updateSummary();
   showToast(`已加入「${name}」`);
+}
+
+/* ---------- 歷史訂單 ---------- */
+function toggleHistoryDetail() {
+  const detail = document.getElementById('historyDetail');
+  const toggle = document.getElementById('historyToggle');
+  const isHidden = detail.style.display === 'none';
+  detail.style.display = isHidden ? 'block' : 'none';
+  toggle.style.transform = isHidden ? '' : 'rotate(-90deg)';
+}
+
+async function renderHistory() {
+  if (!currentEmployee) return;
+  const card = document.getElementById('historyCard');
+  const list = document.getElementById('historyList');
+
+  const dates = await DB.getOrderDates(currentEmployee.id);
+  const today = todayStr();
+  const pastDates = dates.filter(d => d !== today);
+
+  if (pastDates.length === 0) {
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = 'block';
+  list.innerHTML = '';
+
+  for (const date of pastDates.slice(0, 30)) {
+    const orders = await DB.getOrders(date);
+    const myOrders = orders.filter(o => o.employeeId === currentEmployee.id);
+    if (myOrders.length === 0) continue;
+
+    let total = 0;
+    const items = [];
+    myOrders.forEach(o => {
+      o.items.forEach(it => {
+        total += it.price * it.qty;
+        items.push(it);
+      });
+    });
+
+    const div = document.createElement('div');
+    div.style.cssText = 'border:1px solid var(--gray-200); border-radius:8px; padding:12px 16px; margin-bottom:8px;';
+    div.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+        <strong>${date}</strong>
+        <span style="font-size:.85rem; color:var(--gray-500);">${formatPrice(total)}</span>
+      </div>
+      <div style="font-size:.85rem; color:var(--gray-600);">
+        ${items.map(it => `${escHtml(it.name)} x${it.qty}`).join('、')}
+      </div>
+    `;
+    list.appendChild(div);
+  }
 }
 
 /* ---------- 工具 ---------- */

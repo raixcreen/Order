@@ -118,16 +118,25 @@ async function renderOrders() {
   }
   empty.style.display = 'none';
 
+  // 展開每筆訂單的每個品項為一行，方便按品項排序
+  const rows = [];
   orders.forEach(order => {
     const emp = employees.find(e => e.id === order.employeeId);
     const floor = emp ? emp.floor : order.floor || '?';
-    const itemsStr = order.items.map(it => `${it.name} x${it.qty}`).join('、');
+    order.items.forEach(it => {
+      rows.push({ order, emp, floor, item: it });
+    });
+  });
+  // 預設排序：相同品項在一起
+  rows.sort((a, b) => a.item.name.localeCompare(b.item.name, 'zh-TW'));
+
+  rows.forEach(({ order, emp, floor, item }) => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${escHtml(order.employeeName || (emp ? emp.name : '未知'))}</td>
       <td><span class="badge badge-floor${floor}">${floor} 樓</span></td>
-      <td>${escHtml(itemsStr)}</td>
-      <td><strong>${formatPrice(order.total)}</strong></td>
+      <td>${escHtml(item.name)} x${item.qty}</td>
+      <td><strong>${formatPrice(item.price * item.qty)}</strong></td>
       <td>
         <button class="btn btn-ghost btn-sm" onclick="deleteOrderAction('${order.id}')" title="刪除">&#128465;</button>
       </td>
@@ -550,6 +559,15 @@ async function loadVendorMenu() {
   }
   await refreshAll();
   showToast(`已從「${vendor.name}」載入 ${vendor.menu.length} 個品項`);
+}
+
+/* ========== 收合/展開區塊 ========== */
+function toggleSection(sectionId, toggleId) {
+  const section = document.getElementById(sectionId);
+  const toggle = document.getElementById(toggleId);
+  const isHidden = section.style.display === 'none';
+  section.style.display = isHidden ? 'block' : 'none';
+  toggle.style.transform = isHidden ? '' : 'rotate(-90deg)';
 }
 
 /* ========== Modal ========== */
