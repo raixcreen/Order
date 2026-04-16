@@ -14,11 +14,25 @@ let deadlineTimer = null;
   await populateEmployeeSelect();
   document.getElementById('todayDate').textContent = todayStr();
 
-  // 先檢查有沒有開團，決定登入頁顯示內容
+  // 先檢查有沒有開團 / 是否全部截止
   const todayGroups = await DB.getGroups();
-  if (todayGroups.length === 0) {
-    document.getElementById('loginNoGroup').style.display = 'block';
+  const hasGroups = todayGroups.length > 0;
+  const allClosed = hasGroups && todayGroups.every(g => isGroupClosed(g));
+
+  if (!hasGroups || allClosed) {
+    const noGroupEl = document.getElementById('loginNoGroup');
+    noGroupEl.style.display = 'block';
     document.getElementById('loginForm').style.display = 'none';
+
+    if (!hasGroups) {
+      document.getElementById('loginNoGroupIcon').innerHTML = '&#128164;';
+      document.getElementById('loginNoGroupTitle').textContent = '今天還沒有開團';
+      document.getElementById('loginNoGroupDesc').innerHTML = '管理員尚未建立今日的訂餐團<br>開團後即可點餐，請稍候';
+    } else {
+      document.getElementById('loginNoGroupIcon').innerHTML = '&#128683;';
+      document.getElementById('loginNoGroupTitle').textContent = '今天的團都已截止';
+      document.getElementById('loginNoGroupDesc').innerHTML = '所有訂餐團已結束點餐<br>如有需要請聯絡管理員';
+    }
   } else {
     document.getElementById('loginNoGroup').style.display = 'none';
     document.getElementById('loginForm').style.display = 'block';
@@ -519,6 +533,16 @@ async function addCustomItem() {
 }
 
 /* ---------- 工具 ---------- */
+function isGroupClosed(group) {
+  if (group.closed) return true;
+  if (!group.deadline) return false;
+  const now = new Date();
+  const [h, m] = group.deadline.split(':').map(Number);
+  const dl = new Date();
+  dl.setHours(h, m, 0, 0);
+  return now > dl;
+}
+
 function escHtml(s) {
   const d = document.createElement('div');
   d.textContent = s;

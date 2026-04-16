@@ -19,11 +19,11 @@
 
   <!-- 步驟一：選擇員工 -->
   <div id="loginScreen" class="login-screen">
-    <!-- 沒有開團時 -->
+    <!-- 沒有開團 / 全部截止 -->
     <div id="loginNoGroup" class="card" style="display:none;">
-      <div style="font-size:3rem; margin-bottom:12px;">&#128164;</div>
-      <h2>今天還沒有開團</h2>
-      <p style="color:var(--gray-500); line-height:1.8;">管理員尚未建立今日的訂餐團<br>開團後即可點餐，請稍候</p>
+      <div id="loginNoGroupIcon" style="font-size:3rem; margin-bottom:12px;">&#128164;</div>
+      <h2 id="loginNoGroupTitle">今天還沒有開團</h2>
+      <p id="loginNoGroupDesc" style="color:var(--gray-500); line-height:1.8;">管理員尚未建立今日的訂餐團<br>開團後即可點餐，請稍候</p>
     </div>
     <!-- 有開團時 -->
     <div id="loginForm" class="card" style="display:none;">
