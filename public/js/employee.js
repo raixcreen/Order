@@ -14,12 +14,22 @@ let deadlineTimer = null;
   await populateEmployeeSelect();
   document.getElementById('todayDate').textContent = todayStr();
 
-  const saved = sessionStorage.getItem('currentEmployeeId');
-  if (saved) {
-    const emp = await DB.getEmployee(saved);
-    if (emp) {
-      document.getElementById('employeeSelect').value = saved;
-      await employeeLogin();
+  // 先檢查有沒有開團，決定登入頁顯示內容
+  const todayGroups = await DB.getGroups();
+  if (todayGroups.length === 0) {
+    document.getElementById('loginNoGroup').style.display = 'block';
+    document.getElementById('loginForm').style.display = 'none';
+  } else {
+    document.getElementById('loginNoGroup').style.display = 'none';
+    document.getElementById('loginForm').style.display = 'block';
+
+    const saved = sessionStorage.getItem('currentEmployeeId');
+    if (saved) {
+      const emp = await DB.getEmployee(saved);
+      if (emp) {
+        document.getElementById('employeeSelect').value = saved;
+        await employeeLogin();
+      }
     }
   }
 })();
