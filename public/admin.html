@@ -19,192 +19,223 @@
 
   <div class="container">
 
-    <!-- ===== 日期 + 截止時間 + 商家選擇 ===== -->
+    <!-- ===== 日期選擇 ===== -->
     <div class="card">
-      <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:12px;">
+      <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
         <label style="font-weight:700; margin:0;">日期：</label>
         <input type="date" id="dateInput" class="form-control" style="width:auto;">
         <button class="btn btn-outline btn-sm" onclick="goToday()">今天</button>
       </div>
-      <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:12px;">
-        <label style="font-weight:700; margin:0;">點餐截止：</label>
-        <input type="time" id="deadlineInput" class="form-control" style="width:auto;">
-        <button class="btn btn-primary btn-sm" onclick="saveDeadlineAction()">設定截止時間</button>
-        <button class="btn btn-danger btn-sm" onclick="cutoffNowAction()">提前截止</button>
-        <span id="deadlineStatus" style="font-size:.85rem;"></span>
+    </div>
+
+    <!-- ===== 開團管理 ===== -->
+    <div class="card">
+      <div class="card-title">
+        <span class="icon">&#128227;</span>
+        <span>開團管理</span>
       </div>
-      <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
-        <label style="font-weight:700; margin:0;">選擇商家：</label>
-        <select id="vendorQuickSelect" class="form-control" style="width:auto; min-width:180px;" onchange="renderSummaryByItem()">
-          <option value="">-- 載入商家 --</option>
-        </select>
-        <button class="btn btn-primary btn-sm" onclick="loadVendorMenu()">載入菜單</button>
-        <button class="btn btn-danger btn-sm" id="clearOrdersBtn" style="display:none;" onclick="clearAllOrdersAction()">清空訂單</button>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
+        <input type="text" id="newGroupName" class="form-control" placeholder="團名（如：午餐、飲料、下午茶）" style="flex:2; min-width:160px;">
+        <button class="btn btn-primary" onclick="addGroupAction()">新增開團</button>
+      </div>
+      <div id="groupTabs" class="group-tabs" style="margin-bottom:0;"></div>
+      <div id="noGroupAdmin" style="display:none; padding:16px 0; text-align:center; color:var(--gray-400); font-size:.9rem;">
+        尚未開團，請先新增一個團
       </div>
     </div>
 
-    <!-- ===== 統計總覽 ===== -->
-    <div class="stats-row">
-      <div class="stat-card">
-        <div class="stat-value" id="statOrders">0</div>
-        <div class="stat-label">訂購總數</div>
+    <!-- ===== 團設定區（選團後顯示） ===== -->
+    <div id="groupSettings" style="display:none; margin-bottom:20px;">
+
+      <!-- 團的基本設定 -->
+      <div class="card">
+        <div class="card-title">
+          <span class="icon">&#9881;</span>
+          <span id="groupSettingTitle">團設定</span>
+          <button class="btn btn-ghost btn-sm" onclick="deleteGroupAction()" style="margin-left:auto;" title="刪除此團">&#128465; 刪除此團</button>
+        </div>
+        <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:12px;">
+          <label style="font-weight:700; margin:0;">點餐截止：</label>
+          <input type="time" id="deadlineInput" class="form-control" style="width:auto;">
+          <button class="btn btn-primary btn-sm" onclick="saveDeadlineAction()">設定截止時間</button>
+          <button class="btn btn-danger btn-sm" onclick="cutoffNowAction()">提前截止</button>
+          <button class="btn btn-outline btn-sm" onclick="reopenAction()">重新開放</button>
+          <span id="deadlineStatus" style="font-size:.85rem;"></span>
+        </div>
+        <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+          <label style="font-weight:700; margin:0;">選擇商家：</label>
+          <select id="vendorQuickSelect" class="form-control" style="width:auto; min-width:180px;">
+            <option value="">-- 載入商家 --</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="loadVendorMenu()">載入菜單</button>
+          <button class="btn btn-danger btn-sm" id="clearOrdersBtn" style="display:none;" onclick="clearAllOrdersAction()">清空訂單</button>
+        </div>
       </div>
-      <div class="stat-card">
-        <div class="stat-value" id="statTotal">$0</div>
-        <div class="stat-label">總金額</div>
+
+      <!-- 統計總覽 -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-value" id="statOrders">0</div>
+          <div class="stat-label">訂購總數</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="statTotal">$0</div>
+          <div class="stat-label">總金額</div>
+        </div>
+      </div>
+
+      <div class="two-col-grid">
+
+        <!-- 左：訂購彙整 -->
+        <div class="card">
+          <div class="card-title">
+            <span class="icon">&#127858;</span>
+            <span>訂購彙整 - 訂餐用 -</span>
+          </div>
+          <div id="summaryVendorInfo" style="font-size:.9rem; color:var(--gray-600); margin-bottom:12px;"></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>品項</th><th>單價</th><th>總數量</th><th>小計</th></tr></thead>
+              <tbody id="summaryByItemBody"></tbody>
+              <tfoot id="summaryByItemFoot"></tfoot>
+            </table>
+          </div>
+          <div id="summaryByItemEmpty" class="empty-state" style="display:none">
+            <div class="icon">&#127858;</div>
+            <p>尚無訂單</p>
+          </div>
+        </div>
+
+        <!-- 右：菜單圖片 -->
+        <div class="card">
+          <div class="card-title">
+            <span class="icon">&#127806;</span>
+            <span>菜單</span>
+          </div>
+          <div id="menuImgPreview" style="display:none; margin-bottom:12px; text-align:center;">
+            <img id="menuImgThumb" style="max-width:100%; max-height:300px; border-radius:8px; border:1px solid var(--gray-200);">
+            <div style="margin-top:8px; display:flex; gap:8px; justify-content:center;">
+              <button class="btn btn-outline btn-sm" onclick="document.getElementById('menuImgInput').click()">替換圖片</button>
+              <button class="btn btn-ghost btn-sm" onclick="clearMenuImageAction()">移除圖片</button>
+            </div>
+          </div>
+          <div id="menuImgUploadZone" style="border:2px dashed var(--gray-300); border-radius:var(--radius); padding:24px; text-align:center; cursor:pointer; transition:all .2s;"
+               onclick="document.getElementById('menuImgInput').click()"
+               ondragover="event.preventDefault(); this.style.borderColor='var(--primary)'; this.style.background='#EEF2FF'"
+               ondragleave="this.style.borderColor='var(--gray-300)'; this.style.background=''"
+               ondrop="handleMenuImgDrop(event)">
+            <div style="font-size:1.5rem; margin-bottom:4px;">&#128206;</div>
+            <div style="font-weight:600; font-size:.9rem;">上傳菜單圖片給訂購者參考</div>
+            <div style="font-size:.8rem; color:var(--gray-400);">支援 JPG、PNG</div>
+            <input type="file" id="menuImgInput" accept="image/*" style="display:none" onchange="handleMenuImgFile(this.files[0])">
+          </div>
+        </div>
+
+        <!-- 全寬：訂單明細 -->
+        <div class="card full-width">
+          <div class="card-title">
+            <span class="icon">&#128176;</span>
+            <span>訂單明細</span>
+          </div>
+          <div class="floor-tabs">
+            <button class="floor-tab active" onclick="switchFloor(0, this)">全部</button>
+            <button class="floor-tab" onclick="switchFloor(11, this)">11 樓</button>
+            <button class="floor-tab" onclick="switchFloor(19, this)">19 樓</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>員工</th>
+                  <th>樓層</th>
+                  <th>品項</th>
+                  <th>金額</th>
+                  <th>備註</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="orderBody"></tbody>
+            </table>
+          </div>
+          <div id="orderEmpty" class="empty-state" style="display:none">
+            <div class="icon">&#128176;</div>
+            <p>目前沒有訂單</p>
+          </div>
+          <div id="floorSummary" style="margin-top:16px; display:flex; gap:16px; flex-wrap:wrap;"></div>
+        </div>
+
+      </div><!-- /.two-col-grid -->
+    </div><!-- /#groupSettings -->
+
+    <!-- ===== 商家管理（可收合） ===== -->
+    <div class="card">
+      <div class="card-title" onclick="toggleSection('vendorSection', 'vendorToggle')" style="cursor:pointer; user-select:none;">
+        <span class="icon">&#128450;</span>
+        <span>商家管理</span>
+        <span id="vendorCount" style="margin-left:auto; font-size:.8rem; color:var(--gray-400); font-weight:400;"></span>
+        <span id="vendorToggle" style="margin-left:8px; font-size:.75rem; color:var(--gray-400); transition:transform .2s; transform:rotate(-90deg);">&#9660;</span>
+      </div>
+      <div id="vendorSection" style="display:none;">
+        <p style="font-size:.85rem; color:var(--gray-500); margin-bottom:12px;">
+          保存常用商家與菜單，日後選商家即可快速載入
+        </p>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
+          <input type="text" id="newVendorName" class="form-control" placeholder="商家名稱" style="flex:2; min-width:100px;">
+          <input type="text" id="newVendorPhone" class="form-control" placeholder="電話（選填）" style="flex:1; min-width:100px;">
+          <input type="text" id="newVendorNote" class="form-control" placeholder="備註（選填）" style="flex:2; min-width:120px;">
+          <button class="btn btn-primary" onclick="addVendorAction()">新增商家</button>
+        </div>
+        <div id="vendorList"></div>
+        <div id="vendorEmpty" class="empty-state" style="display:none">
+          <div class="icon">&#128450;</div>
+          <p>尚未新增商家</p>
+        </div>
       </div>
     </div>
 
-    <div class="two-col-grid">
-
-      <!-- 左：訂購彙整 -->
-      <div class="card">
-        <div class="card-title">
-          <span class="icon">🍲</span>
-          <span>訂購彙整 - 訂餐用 -</span>
-        </div>
-        <div id="summaryVendorInfo" style="font-size:.9rem; color:var(--gray-600); margin-bottom:12px;"></div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>品項</th><th>單價</th><th>總數量</th><th>小計</th></tr></thead>
-            <tbody id="summaryByItemBody"></tbody>
-            <tfoot id="summaryByItemFoot"></tfoot>
-          </table>
-        </div>
-        <div id="summaryByItemEmpty" class="empty-state" style="display:none">
-          <div class="icon">🍲</div>
-          <p>尚無訂單</p>
-        </div>
+    <!-- ===== 員工管理（可收合） ===== -->
+    <div class="card">
+      <div class="card-title" onclick="toggleSection('empSection', 'empToggle')" style="cursor:pointer; user-select:none;">
+        <span class="icon">&#128522;</span>
+        <span>員工管理</span>
+        <span id="empCount" style="margin-left:auto; font-size:.8rem; color:var(--gray-400); font-weight:400;"></span>
+        <span id="empToggle" style="margin-left:8px; font-size:.75rem; color:var(--gray-400); transition:transform .2s; transform:rotate(-90deg);">&#9660;</span>
       </div>
-
-      <!-- 右：菜單圖片 -->
-      <div class="card">
-        <div class="card-title">
-          <span class="icon">🌾</span>
-          <span>菜單</span>
+      <div id="empSection" style="display:none;">
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
+          <input type="text" id="newEmpName" class="form-control" placeholder="員工姓名" style="flex:2; min-width:140px;">
+          <select id="newEmpFloor" class="form-control" style="flex:1; min-width:100px;">
+            <option value="11">11 樓</option>
+            <option value="19">19 樓</option>
+          </select>
+          <button class="btn btn-primary" onclick="addEmployeeAction()">新增員工</button>
         </div>
-        <div id="menuImgPreview" style="display:none; margin-bottom:12px; text-align:center;">
-          <img id="menuImgThumb" style="max-width:100%; max-height:300px; border-radius:8px; border:1px solid var(--gray-200);">
-          <div style="margin-top:8px; display:flex; gap:8px; justify-content:center;">
-            <button class="btn btn-outline btn-sm" onclick="document.getElementById('menuImgInput').click()">替換圖片</button>
-            <button class="btn btn-ghost btn-sm" onclick="clearMenuImageAction()">移除圖片</button>
-          </div>
-        </div>
-        <div id="menuImgUploadZone" style="border:2px dashed var(--gray-300); border-radius:var(--radius); padding:24px; text-align:center; cursor:pointer; transition:all .2s;"
-             onclick="document.getElementById('menuImgInput').click()"
-             ondragover="event.preventDefault(); this.style.borderColor='var(--primary)'; this.style.background='#EEF2FF'"
-             ondragleave="this.style.borderColor='var(--gray-300)'; this.style.background=''"
-             ondrop="handleMenuImgDrop(event)">
-          <div style="font-size:1.5rem; margin-bottom:4px;">&#128206;</div>
-          <div style="font-weight:600; font-size:.9rem;">上傳菜單圖片給訂購者參考</div>
-          <div style="font-size:.8rem; color:var(--gray-400);">支援 JPG、PNG</div>
-          <input type="file" id="menuImgInput" accept="image/*" style="display:none" onchange="handleMenuImgFile(this.files[0])">
-        </div>
-      </div>
-
-      <!-- 全寬：訂單明細 -->
-      <div class="card full-width">
-        <div class="card-title">
-          <span class="icon">💰</span>
-          <span>訂單明細</span>
-        </div>
-        <div class="floor-tabs">
-          <button class="floor-tab active" onclick="switchFloor(0, this)">全部</button>
-          <button class="floor-tab" onclick="switchFloor(11, this)">11 樓</button>
-          <button class="floor-tab" onclick="switchFloor(19, this)">19 樓</button>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>員工</th>
-                <th>樓層</th>
-                <th>品項</th>
-                <th>金額</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="orderBody"></tbody>
-          </table>
-        </div>
-        <div id="orderEmpty" class="empty-state" style="display:none">
-          <div class="icon">💰</div>
-          <p>目前沒有訂單</p>
-        </div>
-        <div id="floorSummary" style="margin-top:16px; display:flex; gap:16px; flex-wrap:wrap;"></div>
-      </div>
-
-      <!-- 全寬：商家管理（可收合） -->
-      <div class="card full-width">
-        <div class="card-title" onclick="toggleSection('vendorSection', 'vendorToggle')" style="cursor:pointer; user-select:none;">
-          <span class="icon">🗂️</span>
-          <span>商家管理</span>
-          <span id="vendorCount" style="margin-left:auto; font-size:.8rem; color:var(--gray-400); font-weight:400;"></span>
-          <span id="vendorToggle" style="margin-left:8px; font-size:.75rem; color:var(--gray-400); transition:transform .2s; transform:rotate(-90deg);">▼</span>
-        </div>
-        <div id="vendorSection" style="display:none;">
-          <p style="font-size:.85rem; color:var(--gray-500); margin-bottom:12px;">
-            保存常用商家與菜單，日後選商家即可快速載入
-          </p>
-          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
-            <input type="text" id="newVendorName" class="form-control" placeholder="商家名稱" style="flex:2; min-width:100px;">
-            <input type="text" id="newVendorPhone" class="form-control" placeholder="電話（選填）" style="flex:1; min-width:100px;">
-            <input type="text" id="newVendorNote" class="form-control" placeholder="備註（選填）" style="flex:2; min-width:120px;">
-            <button class="btn btn-primary" onclick="addVendorAction()">新增商家</button>
-          </div>
-          <div id="vendorList"></div>
-          <div id="vendorEmpty" class="empty-state" style="display:none">
-            <div class="icon">🗂️</div>
-            <p>尚未新增商家</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- 全寬：員工管理（可收合） -->
-      <div class="card full-width">
-        <div class="card-title" onclick="toggleSection('empSection', 'empToggle')" style="cursor:pointer; user-select:none;">
-          <span class="icon">😊</span>
-          <span>員工管理</span>
-          <span id="empCount" style="margin-left:auto; font-size:.8rem; color:var(--gray-400); font-weight:400;"></span>
-          <span id="empToggle" style="margin-left:8px; font-size:.75rem; color:var(--gray-400); transition:transform .2s; transform:rotate(-90deg);">▼</span>
-        </div>
-        <div id="empSection" style="display:none;">
-          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
-            <input type="text" id="newEmpName" class="form-control" placeholder="員工姓名" style="flex:2; min-width:140px;">
-            <select id="newEmpFloor" class="form-control" style="flex:1; min-width:100px;">
-              <option value="11">11 樓</option>
-              <option value="19">19 樓</option>
-            </select>
-            <button class="btn btn-primary" onclick="addEmployeeAction()">新增員工</button>
-          </div>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
-            <div>
-              <div style="font-weight:700; margin-bottom:8px;"><span class="badge badge-floor11">11 樓</span> <span id="empCount11" style="font-size:.8rem; color:var(--gray-400); font-weight:400;"></span></div>
-              <div class="table-wrap">
-                <table>
-                  <thead><tr><th>姓名</th><th></th></tr></thead>
-                  <tbody id="empBody11"></tbody>
-                </table>
-              </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+          <div>
+            <div style="font-weight:700; margin-bottom:8px;"><span class="badge badge-floor11">11 樓</span> <span id="empCount11" style="font-size:.8rem; color:var(--gray-400); font-weight:400;"></span></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>姓名</th><th></th></tr></thead>
+                <tbody id="empBody11"></tbody>
+              </table>
             </div>
-            <div>
-              <div style="font-weight:700; margin-bottom:8px;"><span class="badge badge-floor19">19 樓</span> <span id="empCount19" style="font-size:.8rem; color:var(--gray-400); font-weight:400;"></span></div>
-              <div class="table-wrap">
-                <table>
-                  <thead><tr><th>姓名</th><th></th></tr></thead>
-                  <tbody id="empBody19"></tbody>
-                </table>
-              </div>
+          </div>
+          <div>
+            <div style="font-weight:700; margin-bottom:8px;"><span class="badge badge-floor19">19 樓</span> <span id="empCount19" style="font-size:.8rem; color:var(--gray-400); font-weight:400;"></span></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>姓名</th><th></th></tr></thead>
+                <tbody id="empBody19"></tbody>
+              </table>
             </div>
           </div>
         </div>
       </div>
-
-    </div><!-- /.two-col-grid -->
+    </div>
 
   </div>
 
-  <!-- Modal for batch actions -->
+  <!-- Modal -->
   <div id="modalOverlay" class="modal-overlay" style="display:none">
     <div class="modal">
       <h3 id="modalTitle">確認</h3>

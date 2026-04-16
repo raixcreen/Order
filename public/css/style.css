@@ -301,6 +301,25 @@ tr:hover { background: var(--gray-50); }
   font-weight: 700;
   min-width: 24px;
 }
+.menu-item .item-note-input {
+  width: 100%;
+  margin-top: 10px;
+  padding: 6px 10px;
+  border: 1.5px solid var(--gray-200);
+  border-radius: 6px;
+  font-size: .8rem;
+  text-align: center;
+  transition: border-color .2s;
+}
+.menu-item .item-note-input:focus {
+  outline: none;
+  border-color: var(--primary-light);
+}
+.menu-item .item-note-display {
+  margin-top: 8px;
+  font-size: .8rem;
+  color: var(--gray-500);
+}
 
 /* ===== 訂單摘要 ===== */
 .order-summary {
@@ -323,6 +342,29 @@ tr:hover { background: var(--gray-50); }
 .order-summary .items-count {
   color: var(--gray-500);
   font-size: .9rem;
+}
+
+/* ===== 開團 Tab ===== */
+.group-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.group-tab {
+  padding: 10px 24px;
+  border-radius: 8px;
+  border: 2px solid var(--gray-200);
+  background: #fff;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: .9rem;
+  transition: all .2s;
+}
+.group-tab:hover { border-color: var(--primary-light); }
+.group-tab.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
 }
 
 /* ===== 樓層切換 Tab ===== */

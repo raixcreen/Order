@@ -23,22 +23,46 @@ const DB = {
     return res.json();
   },
 
-  /* ---------- 每日菜單 ---------- */
-  async getMenu(date) {
-    const res = await fetch(`${API}/api/menu/${date || todayStr()}`);
+  /* ---------- 開團 ---------- */
+  async getGroups(date) {
+    const res = await fetch(`${API}/api/groups/${date || todayStr()}`);
     return res.json();
   },
-  async saveMenu(items, date) {
-    const res = await fetch(`${API}/api/menu/${date || todayStr()}`, {
+  async addGroup(name, date) {
+    const res = await fetch(`${API}/api/groups/${date || todayStr()}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items })
+      body: JSON.stringify({ name })
     });
     return res.json();
   },
-  async addMenuItem(item, date) {
+  async updateGroup(id, updates) {
+    await fetch(`${API}/api/groups/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates)
+    });
+  },
+  async deleteGroup(id) {
+    await fetch(`${API}/api/groups/${id}`, { method: 'DELETE' });
+  },
+
+  /* ---------- 每日菜單 ---------- */
+  async getMenu(date, groupId) {
+    let url = `${API}/api/menu/${date || todayStr()}`;
+    if (groupId) url += `?group_id=${groupId}`;
+    const res = await fetch(url);
+    return res.json();
+  },
+  async saveMenu(items, date, groupId) {
+    const res = await fetch(`${API}/api/menu/${date || todayStr()}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items, group_id: groupId || '' })
+    });
+    return res.json();
+  },
+  async addMenuItem(item, date, groupId) {
     const res = await fetch(`${API}/api/menu/${date || todayStr()}/item`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(item)
+      body: JSON.stringify({ ...item, group_id: groupId || '' })
     });
     return res.json();
   },
@@ -47,8 +71,10 @@ const DB = {
   },
 
   /* ---------- 訂單 ---------- */
-  async getOrders(date) {
-    const res = await fetch(`${API}/api/orders/${date || todayStr()}`);
+  async getOrders(date, groupId) {
+    let url = `${API}/api/orders/${date || todayStr()}`;
+    if (groupId) url += `?group_id=${groupId}`;
+    const res = await fetch(url);
     return res.json();
   },
   async addOrder(order, date) {
@@ -71,62 +97,6 @@ const DB = {
     const url = employeeId ? `${API}/api/order-dates?employeeId=${employeeId}` : `${API}/api/order-dates`;
     const res = await fetch(url);
     return res.json();
-  },
-  async getOrdersByFloor(floor, date) {
-    const orders = await this.getOrders(date);
-    const employees = await this.getEmployees();
-    return orders.filter(o => {
-      const emp = employees.find(e => e.id === o.employeeId);
-      return emp && emp.floor === floor;
-    });
-  },
-
-  /* ---------- 每日設定（截止時間、商家、菜單圖片） ---------- */
-  async _getSettings(date) {
-    const res = await fetch(`${API}/api/settings/${date || todayStr()}`);
-    return res.json();
-  },
-  async _setSetting(key, value, date) {
-    await fetch(`${API}/api/settings/${date || todayStr()}`, {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ [key]: value })
-    });
-  },
-
-  async getMenuImage(date) {
-    const s = await this._getSettings(date);
-    return s.menuImage || null;
-  },
-  async setMenuImage(dataUrl, date) {
-    await this._setSetting('menuImage', dataUrl, date);
-  },
-  async clearMenuImage(date) {
-    await this._setSetting('menuImage', null, date);
-  },
-
-  async getVendorOfDay(date) {
-    const s = await this._getSettings(date);
-    return s.vendorOfDay || null;
-  },
-  async setVendorOfDay(vendorId, date) {
-    await this._setSetting('vendorOfDay', vendorId, date);
-  },
-
-  async getDeadline(date) {
-    const s = await this._getSettings(date);
-    return s.deadline || null;
-  },
-  async setDeadline(time, date) {
-    await this._setSetting('deadline', time, date);
-  },
-  async isOrderOpen(date) {
-    const dl = await this.getDeadline(date);
-    if (!dl) return true;
-    const now = new Date();
-    const [h, m] = dl.split(':').map(Number);
-    const deadlineTime = new Date();
-    deadlineTime.setHours(h, m, 0, 0);
-    return now <= deadlineTime;
   },
 
   /* ---------- 商家資料庫 ---------- */
@@ -154,9 +124,6 @@ const DB = {
     const res = await fetch(`${API}/api/vendors/${id}`);
     return res.json();
   },
-
-  /* ---------- 初始化（伺服器端已處理） ---------- */
-  async initDefaults() { /* no-op: server handles defaults */ }
 };
 
 /* ===== 工具函式 ===== */

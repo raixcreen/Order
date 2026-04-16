@@ -2,6 +2,8 @@
 
 let currentFloorFilter = 0;
 let selectedDate = todayStr();
+let selectedGroupId = null;
+let groups = [];
 
 /* ---------- 初始化 ---------- */
 (async function init() {
@@ -9,6 +11,7 @@ let selectedDate = todayStr();
   dateInput.value = selectedDate;
   dateInput.addEventListener('change', () => {
     selectedDate = dateInput.value;
+    selectedGroupId = null;
     refreshAll();
   });
   await refreshAll();
@@ -17,21 +20,104 @@ let selectedDate = todayStr();
 function goToday() {
   selectedDate = todayStr();
   document.getElementById('dateInput').value = selectedDate;
+  selectedGroupId = null;
   refreshAll();
 }
 
 async function refreshAll() {
+  await loadGroups();
+  await Promise.all([
+    renderVendors(),
+    renderEmployees(),
+  ]);
+  if (selectedGroupId) {
+    await refreshGroupContent();
+  }
+}
+
+async function refreshGroupContent() {
+  if (!selectedGroupId) return;
   await Promise.all([
     renderDeadline(),
     renderMenuImage(),
     renderSummaryByItem(),
-    renderVendors(),
     renderVendorQuickSelect(),
-    renderEmployees(),
     renderOrders(),
   ]);
   await renderStats();
   await updateVendorLock();
+}
+
+/* ========== 開團管理 ========== */
+async function loadGroups() {
+  groups = await DB.getGroups(selectedDate);
+  renderGroupTabs();
+
+  if (groups.length > 0) {
+    if (!selectedGroupId || !groups.find(g => g.id === selectedGroupId)) {
+      selectedGroupId = groups[0].id;
+    }
+    document.getElementById('noGroupAdmin').style.display = 'none';
+    document.getElementById('groupSettings').style.display = 'block';
+    renderGroupTabs();
+    await refreshGroupContent();
+  } else {
+    selectedGroupId = null;
+    document.getElementById('noGroupAdmin').style.display = 'block';
+    document.getElementById('groupSettings').style.display = 'none';
+  }
+}
+
+function renderGroupTabs() {
+  const container = document.getElementById('groupTabs');
+  container.innerHTML = '';
+
+  if (groups.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+  container.style.display = 'flex';
+
+  groups.forEach(g => {
+    const btn = document.createElement('button');
+    btn.className = 'group-tab' + (g.id === selectedGroupId ? ' active' : '');
+    btn.textContent = g.name;
+    if (g.closed) btn.textContent += '（已截止）';
+    btn.onclick = async () => {
+      selectedGroupId = g.id;
+      currentFloorFilter = 0;
+      renderGroupTabs();
+      await refreshGroupContent();
+      // 重置樓層 tab
+      document.querySelectorAll('.floor-tab').forEach((t, i) => {
+        t.classList.toggle('active', i === 0);
+      });
+    };
+    container.appendChild(btn);
+  });
+}
+
+async function addGroupAction() {
+  const nameEl = document.getElementById('newGroupName');
+  const name = nameEl.value.trim();
+  if (!name) { showToast('請輸入團名', 'error'); return; }
+
+  const g = await DB.addGroup(name, selectedDate);
+  nameEl.value = '';
+  selectedGroupId = g.id;
+  await refreshAll();
+  showToast(`已建立「${name}」`);
+}
+
+async function deleteGroupAction() {
+  const group = groups.find(g => g.id === selectedGroupId);
+  if (!group) return;
+  openModal('刪除開團', `確定要刪除「${group.name}」嗎？此團的菜單與訂單都會一併刪除，無法復原。`, async () => {
+    await DB.deleteGroup(selectedGroupId);
+    selectedGroupId = null;
+    await refreshAll();
+    showToast('開團已刪除');
+  });
 }
 
 /* ========== 員工管理 ========== */
@@ -97,7 +183,8 @@ function switchFloor(floor, btn) {
 }
 
 async function renderOrders() {
-  let orders = await DB.getOrders(selectedDate);
+  if (!selectedGroupId) return;
+  let orders = await DB.getOrders(selectedDate, selectedGroupId);
   const employees = await DB.getEmployees();
 
   if (currentFloorFilter > 0) {
@@ -118,25 +205,26 @@ async function renderOrders() {
   }
   empty.style.display = 'none';
 
-  // 展開每筆訂單的每個品項為一行，方便按品項排序
+  // 展開每筆訂單的每個品項為一行
   const rows = [];
   orders.forEach(order => {
     const emp = employees.find(e => e.id === order.employeeId);
     const floor = emp ? emp.floor : order.floor || '?';
-    order.items.forEach(it => {
-      rows.push({ order, emp, floor, item: it });
+    order.items.forEach((it, idx) => {
+      rows.push({ order, emp, floor, item: it, isFirst: idx === 0 });
     });
   });
-  // 預設排序：相同品項在一起
   rows.sort((a, b) => a.item.name.localeCompare(b.item.name, 'zh-TW'));
 
   rows.forEach(({ order, emp, floor, item }) => {
     const tr = document.createElement('tr');
+    const noteHtml = item.note ? escHtml(item.note) : '<span style="color:var(--gray-300);">—</span>';
     tr.innerHTML = `
       <td>${escHtml(order.employeeName || (emp ? emp.name : '未知'))}</td>
       <td><span class="badge badge-floor${floor}">${floor} 樓</span></td>
       <td>${escHtml(item.name)} x${item.qty}</td>
       <td><strong>${formatPrice(item.price * item.qty)}</strong></td>
+      <td style="font-size:.8rem; max-width:150px;" title="${escHtml(item.note || '')}">${noteHtml}</td>
       <td>
         <button class="btn btn-ghost btn-sm" onclick="deleteOrderAction('${order.id}')" title="刪除">&#128465;</button>
       </td>
@@ -149,14 +237,14 @@ async function renderOrders() {
 
 async function deleteOrderAction(id) {
   await DB.deleteOrder(id, selectedDate);
-  await refreshAll();
+  await refreshGroupContent();
   showToast('訂單已刪除');
 }
 
 /* ========== 樓層小計 ========== */
 async function renderFloorSummary() {
   const container = document.getElementById('floorSummary');
-  const allOrders = await DB.getOrders(selectedDate);
+  const allOrders = await DB.getOrders(selectedDate, selectedGroupId);
   const employees = await DB.getEmployees();
 
   const floors = [11, 19];
@@ -185,33 +273,46 @@ async function renderFloorSummary() {
 
 /* ========== 統計 ========== */
 async function renderStats() {
-  const orders = await DB.getOrders(selectedDate);
+  if (!selectedGroupId) return;
+  const orders = await DB.getOrders(selectedDate, selectedGroupId);
   const total = orders.reduce((s, o) => s + o.total, 0);
 
   document.getElementById('statOrders').textContent = orders.length;
   document.getElementById('statTotal').textContent = formatPrice(total);
+
+  const group = groups.find(g => g.id === selectedGroupId);
+  document.getElementById('groupSettingTitle').textContent =
+    group ? `${group.name} — 設定` : '團設定';
 }
 
 /* ========== 截止時間 ========== */
 async function renderDeadline() {
-  const dl = await DB.getDeadline(selectedDate);
+  if (!selectedGroupId) return;
+  const group = groups.find(g => g.id === selectedGroupId);
+  if (!group) return;
+
   const input = document.getElementById('deadlineInput');
   const status = document.getElementById('deadlineStatus');
-  input.value = dl || '';
+  input.value = group.deadline || '';
 
-  if (!dl) {
+  if (!group.deadline && !group.closed) {
     status.textContent = '（未設定截止時間）';
     status.style.color = 'var(--gray-400)';
+  } else if (group.closed) {
+    status.textContent = '已截止';
+    status.style.color = 'var(--danger)';
   } else {
-    const isOpen = await DB.isOrderOpen(selectedDate);
-    if (selectedDate !== todayStr()) {
-      status.textContent = `截止時間：${dl}`;
-      status.style.color = 'var(--gray-500)';
-    } else if (isOpen) {
-      status.textContent = `開放中，${dl} 截止`;
+    const now = new Date();
+    const [h, m] = group.deadline.split(':').map(Number);
+    const deadlineTime = new Date();
+    deadlineTime.setHours(h, m, 0, 0);
+    const isOpen = selectedDate !== todayStr() || now <= deadlineTime;
+
+    if (isOpen) {
+      status.textContent = `開放中，${group.deadline} 截止`;
       status.style.color = 'var(--success)';
     } else {
-      status.textContent = `已截止（${dl}）`;
+      status.textContent = `已截止（${group.deadline}）`;
       status.style.color = 'var(--danger)';
     }
   }
@@ -220,7 +321,9 @@ async function renderDeadline() {
 async function saveDeadlineAction() {
   const time = document.getElementById('deadlineInput').value;
   if (!time) { showToast('請選擇截止時間', 'error'); return; }
-  await DB.setDeadline(time, selectedDate);
+  await DB.updateGroup(selectedGroupId, { deadline: time, closed: false });
+  groups = await DB.getGroups(selectedDate);
+  renderGroupTabs();
   await renderDeadline();
   showToast(`已設定截止時間 ${time}`);
 }
@@ -228,15 +331,26 @@ async function saveDeadlineAction() {
 async function cutoffNowAction() {
   const now = new Date();
   const time = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
-  await DB.setDeadline(time, selectedDate);
-  document.getElementById('deadlineInput').value = time;
+  await DB.updateGroup(selectedGroupId, { deadline: time, closed: true });
+  groups = await DB.getGroups(selectedDate);
+  renderGroupTabs();
   await renderDeadline();
   showToast('已提前截止點餐');
 }
 
+async function reopenAction() {
+  await DB.updateGroup(selectedGroupId, { closed: false });
+  groups = await DB.getGroups(selectedDate);
+  renderGroupTabs();
+  await renderDeadline();
+  showToast('已重新開放點餐');
+}
+
 /* ========== 菜單圖片管理 ========== */
 async function renderMenuImage() {
-  const dataUrl = await DB.getMenuImage(selectedDate);
+  if (!selectedGroupId) return;
+  const group = groups.find(g => g.id === selectedGroupId);
+  const dataUrl = group ? group.menu_image : '';
   const preview = document.getElementById('menuImgPreview');
   const uploadZone = document.getElementById('menuImgUploadZone');
 
@@ -263,8 +377,9 @@ function handleMenuImgFile(file) {
   const reader = new FileReader();
   reader.onload = async function(e) {
     compressImage(e.target.result, 1200, 0.8, async function(compressed) {
-      await DB.setMenuImage(compressed, selectedDate);
-      await refreshAll();
+      await DB.updateGroup(selectedGroupId, { menu_image: compressed });
+      groups = await DB.getGroups(selectedDate);
+      await renderMenuImage();
       showToast('菜單圖片已上傳');
     });
   };
@@ -286,15 +401,17 @@ function compressImage(dataUrl, maxWidth, quality, callback) {
 }
 
 async function clearMenuImageAction() {
-  await DB.clearMenuImage(selectedDate);
+  await DB.updateGroup(selectedGroupId, { menu_image: '' });
+  groups = await DB.getGroups(selectedDate);
   document.getElementById('menuImgInput').value = '';
-  await refreshAll();
+  await renderMenuImage();
   showToast('菜單圖片已移除');
 }
 
 /* ========== 訂購彙總（按品項） ========== */
 async function renderSummaryByItem() {
-  const orders = await DB.getOrders(selectedDate);
+  if (!selectedGroupId) return;
+  const orders = await DB.getOrders(selectedDate, selectedGroupId);
   const tbody = document.getElementById('summaryByItemBody');
   const tfoot = document.getElementById('summaryByItemFoot');
   const empty = document.getElementById('summaryByItemEmpty');
@@ -302,9 +419,8 @@ async function renderSummaryByItem() {
   tbody.innerHTML = '';
   tfoot.innerHTML = '';
 
-  const selectVendorId = document.getElementById('vendorQuickSelect').value;
-  const savedVendorId = await DB.getVendorOfDay(selectedDate);
-  const vendorId = selectVendorId || savedVendorId;
+  const group = groups.find(g => g.id === selectedGroupId);
+  const vendorId = group ? group.vendor_id : '';
   const vendor = vendorId ? await DB.getVendor(vendorId) : null;
   if (vendor) {
     let html = `<strong style="font-size:1rem;">${escHtml(vendor.name)}</strong>`;
@@ -321,11 +437,13 @@ async function renderSummaryByItem() {
   }
   empty.style.display = 'none';
 
+  // 同品項+同備註 合併為一行，不同備註分開顯示
   const map = {};
   orders.forEach(o => {
     o.items.forEach(it => {
-      const key = it.name + '|' + it.price;
-      if (!map[key]) map[key] = { name: it.name, price: it.price, qty: 0 };
+      const note = it.note || '';
+      const key = it.name + '|' + it.price + '|' + note;
+      if (!map[key]) map[key] = { name: it.name, price: it.price, qty: 0, note };
       map[key].qty += it.qty;
     });
   });
@@ -338,9 +456,12 @@ async function renderSummaryByItem() {
     const subtotal = item.price * item.qty;
     grandTotal += subtotal;
     grandQty += item.qty;
+    const noteHtml = item.note
+      ? `<div style="font-size:.8rem; color:var(--gray-500); margin-top:2px;">備註：${escHtml(item.note)}</div>`
+      : '';
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><strong>${escHtml(item.name)}</strong></td>
+      <td><strong>${escHtml(item.name)}</strong>${noteHtml}</td>
       <td>${formatPrice(item.price)}</td>
       <td><strong>${item.qty}</strong></td>
       <td>${formatPrice(subtotal)}</td>
@@ -414,9 +535,11 @@ async function renderVendors() {
 }
 
 async function renderVendorQuickSelect() {
+  if (!selectedGroupId) return;
   const sel = document.getElementById('vendorQuickSelect');
   const vendors = await DB.getVendors();
-  const savedVendorId = await DB.getVendorOfDay(selectedDate);
+  const group = groups.find(g => g.id === selectedGroupId);
+  const savedVendorId = group ? group.vendor_id : '';
   sel.innerHTML = '<option value="">-- 載入商家 --</option>';
   vendors.forEach(v => {
     const opt = document.createElement('option');
@@ -510,7 +633,8 @@ async function addVendorMenuItem(vendorId) {
 }
 
 async function updateVendorLock() {
-  const orders = await DB.getOrders(selectedDate);
+  if (!selectedGroupId) return;
+  const orders = await DB.getOrders(selectedDate, selectedGroupId);
   const locked = orders.length > 0;
 
   const sel = document.getElementById('vendorQuickSelect');
@@ -531,12 +655,14 @@ async function updateVendorLock() {
 }
 
 async function clearAllOrdersAction() {
-  const orders = await DB.getOrders(selectedDate);
-  openModal('清空訂單', `確定要清空 ${selectedDate} 的全部 ${orders.length} 筆訂單嗎？此操作無法復原。`, async () => {
+  const orders = await DB.getOrders(selectedDate, selectedGroupId);
+  const group = groups.find(g => g.id === selectedGroupId);
+  const groupName = group ? group.name : '';
+  openModal('清空訂單', `確定要清空「${groupName}」的全部 ${orders.length} 筆訂單嗎？此操作無法復原。`, async () => {
     for (const o of orders) {
       await DB.deleteOrder(o.id, selectedDate);
     }
-    await refreshAll();
+    await refreshGroupContent();
     showToast('所有訂單已清空');
   });
 }
@@ -547,17 +673,21 @@ async function loadVendorMenu() {
   const vendor = await DB.getVendor(vendorId);
   if (!vendor || vendor.menu.length === 0) { showToast('該商家尚無菜單', 'error'); return; }
 
-  await DB.setVendorOfDay(vendorId, selectedDate);
+  // 儲存商家到團
+  await DB.updateGroup(selectedGroupId, { vendor_id: vendorId });
+
+  // 載入商家菜單圖到團
+  if (vendor.image) {
+    await DB.updateGroup(selectedGroupId, { menu_image: vendor.image });
+  }
 
   const menuItems = vendor.menu.map(m => ({
     name: m.name,
     price: m.price
   }));
-  await DB.saveMenu(menuItems, selectedDate);
-  if (vendor.image) {
-    await DB.setMenuImage(vendor.image, selectedDate);
-  }
-  await refreshAll();
+  await DB.saveMenu(menuItems, selectedDate, selectedGroupId);
+  groups = await DB.getGroups(selectedDate);
+  await refreshGroupContent();
   showToast(`已從「${vendor.name}」載入 ${vendor.menu.length} 個品項`);
 }
 

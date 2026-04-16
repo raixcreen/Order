@@ -33,80 +33,84 @@
 
   <!-- 步驟二：訂餐畫面 -->
   <div id="orderScreen" class="container" style="display:none">
-    <div class="card">
+
+    <!-- 開團 Tab -->
+    <div id="groupTabsCard" class="card">
       <div class="card-title">
         <span class="icon">&#127860;</span>
-        <span>今日菜單 — <span id="todayDate"></span></span>
+        <span>今日開團 — <span id="todayDate"></span></span>
         <span style="margin-left:auto; display:flex; align-items:center; gap:8px;">
           <span id="empInfo" style="font-size:.85rem; color:var(--gray-500);"></span>
           <button class="btn btn-outline btn-sm" onclick="switchEmployee()">切換身份</button>
         </span>
       </div>
+      <div id="groupTabs" class="group-tabs"></div>
+      <div id="noGroupMsg" class="empty-state" style="display:none; padding:24px;">
+        <div class="icon">&#128230;</div>
+        <p>今天尚未開團，請等待管理員開團</p>
+      </div>
+    </div>
+
+    <!-- 團內容（選擇團後顯示） -->
+    <div id="groupContent" style="display:none;">
+
       <!-- 截止時間提示 + 商家備註 -->
-      <div id="deadlineRow" style="display:none; margin-bottom:16px; gap:12px; align-items:center; flex-wrap:wrap;">
-        <div id="deadlineBanner" style="padding:12px 16px; border-radius:8px; font-weight:600; font-size:.9rem;"></div>
-        <div id="vendorNote" style="display:none; padding:10px 14px; background:var(--gray-100); border-radius:8px; font-size:.85rem; color:var(--gray-600);"></div>
+      <div class="card">
+        <div id="deadlineRow" style="display:none; gap:12px; align-items:center; flex-wrap:wrap;">
+          <div id="deadlineBanner" style="padding:12px 16px; border-radius:8px; font-weight:600; font-size:.9rem;"></div>
+          <div id="vendorNote" style="display:none; padding:10px 14px; background:var(--gray-100); border-radius:8px; font-size:.85rem; color:var(--gray-600);"></div>
+        </div>
+
+        <!-- 菜單圖片（可收合） -->
+        <div id="menuImageSection" style="display:none; margin-top:16px;">
+          <div onclick="toggleMenuImage()" style="cursor:pointer; user-select:none; display:flex; align-items:center; gap:6px; margin-bottom:8px;">
+            <span style="font-weight:600; font-size:.9rem; color:var(--gray-600);">菜單圖片</span>
+            <span id="menuImageToggle" style="font-size:.75rem; color:var(--gray-400); transition:transform .2s;">&#9660;</span>
+          </div>
+          <div id="menuImageContent" style="text-align:center;">
+            <img id="menuImageDisplay" style="max-width:100%; border-radius:8px; border:1px solid var(--gray-200); cursor:pointer;" onclick="toggleImageZoom(this)" title="點擊放大">
+          </div>
+        </div>
+
+        <!-- 自訂品項 -->
+        <div id="customItemSection" style="margin-top:16px; padding:12px 16px; background:var(--gray-50); border-radius:8px;">
+          <div style="font-weight:600; font-size:.9rem; margin-bottom:8px;">自訂品項</div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            <input type="text" id="customItemName" class="form-control" placeholder="品項名稱" style="flex:2; min-width:120px;">
+            <input type="number" id="customItemPrice" class="form-control" placeholder="金額" style="flex:1; min-width:80px;">
+            <button class="btn btn-primary btn-sm" onclick="addCustomItem()">加入</button>
+          </div>
+        </div>
+
+        <div id="menuGrid" class="menu-grid" style="margin-top:16px;"></div>
+        <div id="emptyMenu" class="empty-state" style="display:none">
+          <div class="icon">&#128196;</div>
+          <p>此團尚未設定菜單，請聯絡管理員</p>
+        </div>
       </div>
 
-      <!-- 菜單圖片（可收合） -->
-      <div id="menuImageSection" style="display:none; margin-bottom:20px;">
-        <div onclick="toggleMenuImage()" style="cursor:pointer; user-select:none; display:flex; align-items:center; gap:6px; margin-bottom:8px;">
-          <span style="font-weight:600; font-size:.9rem; color:var(--gray-600);">菜單圖片</span>
-          <span id="menuImageToggle" style="font-size:.75rem; color:var(--gray-400); transition:transform .2s;">▼</span>
+      <!-- 已點餐項目 -->
+      <div id="myOrderCard" class="card" style="display:none">
+        <div class="card-title" onclick="toggleOrderDetail()" style="cursor:pointer; user-select:none;">
+          <span class="icon">&#9989;</span>
+          <span>你在此團已訂的餐點</span>
+          <span id="myOrderSummaryText" style="margin-left:8px; font-size:.85rem; font-weight:400; color:var(--gray-500);"></span>
+          <span id="myOrderToggle" style="margin-left:auto; font-size:.8rem; color:var(--gray-400); transition:transform .2s;">&#9660;</span>
         </div>
-        <div id="menuImageContent" style="text-align:center;">
-          <img id="menuImageDisplay" style="max-width:100%; border-radius:8px; border:1px solid var(--gray-200); cursor:pointer;" onclick="toggleImageZoom(this)" title="點擊放大">
+        <div id="myOrderDetail" style="display:none;">
+          <div id="editHint" style="margin-bottom:12px; padding:10px 14px; background:#EEF2FF; border-radius:8px; font-size:.85rem; color:var(--primary-dark);">
+            可直接在上方菜單調整數量，再按「更新訂單」即可修改
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>品項</th><th>數量</th><th>小計</th></tr></thead>
+              <tbody id="myOrderBody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
-      <!-- 自訂品項 -->
-      <div id="customItemSection" style="margin-bottom:16px; padding:12px 16px; background:var(--gray-50); border-radius:8px;">
-        <div style="font-weight:600; font-size:.9rem; margin-bottom:8px;">自訂品項</div>
-        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-          <input type="text" id="customItemName" class="form-control" placeholder="品項名稱" style="flex:2; min-width:120px;">
-          <input type="number" id="customItemPrice" class="form-control" placeholder="金額" style="flex:1; min-width:80px;">
-          <button class="btn btn-primary btn-sm" onclick="addCustomItem()">加入</button>
-        </div>
-      </div>
-
-      <div id="menuGrid" class="menu-grid"></div>
-      <div id="emptyMenu" class="empty-state" style="display:none">
-        <div class="icon">&#128196;</div>
-        <p>今日尚未設定菜單，請聯絡管理員</p>
-      </div>
-    </div>
-
-    <!-- 已點餐項目（可收合） -->
-    <div id="myOrderCard" class="card" style="display:none">
-      <div class="card-title" onclick="toggleOrderDetail()" style="cursor:pointer; user-select:none;">
-        <span class="icon">&#9989;</span>
-        <span>你今天已訂的餐點</span>
-        <span id="myOrderSummaryText" style="margin-left:8px; font-size:.85rem; font-weight:400; color:var(--gray-500);"></span>
-        <span id="myOrderToggle" style="margin-left:auto; font-size:.8rem; color:var(--gray-400); transition:transform .2s;">&#9660;</span>
-      </div>
-      <div id="myOrderDetail" style="display:none;">
-        <div id="editHint" style="margin-bottom:12px; padding:10px 14px; background:#EEF2FF; border-radius:8px; font-size:.85rem; color:var(--primary-dark);">
-          可直接在上方菜單調整數量，再按「更新訂單」即可修改
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>品項</th><th>數量</th><th>小計</th></tr></thead>
-            <tbody id="myOrderBody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-    <!-- 歷史訂單 -->
-    <div id="historyCard" class="card" style="display:none;">
-      <div class="card-title" onclick="toggleHistoryDetail()" style="cursor:pointer; user-select:none;">
-        <span class="icon">&#128197;</span>
-        <span>歷史訂單</span>
-        <span id="historyToggle" style="margin-left:auto; font-size:.8rem; color:var(--gray-400); transition:transform .2s; transform:rotate(-90deg);">&#9660;</span>
-      </div>
-      <div id="historyDetail" style="display:none;">
-        <div id="historyList"></div>
-      </div>
-    </div>
+    </div><!-- /#groupContent -->
   </div>
 
   <!-- 底部訂單摘要 -->

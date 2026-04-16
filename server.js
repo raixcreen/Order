@@ -41,11 +41,23 @@ db.exec(`
     price INTEGER NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS groups (
+    id TEXT PRIMARY KEY,
+    date TEXT NOT NULL,
+    name TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    vendor_id TEXT DEFAULT '',
+    deadline TEXT DEFAULT '',
+    menu_image TEXT DEFAULT '',
+    closed INTEGER NOT NULL DEFAULT 0
+  );
+
   CREATE TABLE IF NOT EXISTS daily_menus (
     id TEXT PRIMARY KEY,
     date TEXT NOT NULL,
     name TEXT NOT NULL,
-    price INTEGER NOT NULL
+    price INTEGER NOT NULL,
+    group_id TEXT DEFAULT ''
   );
 
   CREATE TABLE IF NOT EXISTS orders (
@@ -54,7 +66,8 @@ db.exec(`
     employee_id TEXT NOT NULL,
     employee_name TEXT NOT NULL,
     floor INTEGER,
-    period INTEGER NOT NULL DEFAULT 1,
+    group_id TEXT DEFAULT '',
+    note TEXT DEFAULT '',
     total INTEGER NOT NULL DEFAULT 0,
     paid INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL
@@ -66,7 +79,8 @@ db.exec(`
     menu_item_id TEXT NOT NULL,
     name TEXT NOT NULL,
     price INTEGER NOT NULL,
-    qty INTEGER NOT NULL
+    qty INTEGER NOT NULL,
+    note TEXT DEFAULT ''
   );
 
   CREATE TABLE IF NOT EXISTS daily_settings (
@@ -78,11 +92,41 @@ db.exec(`
 `);
 
 /* ===== 資料庫遷移 ===== */
+// 遷移: orders.period -> 不再使用，改用 group_id
 try {
   db.prepare("SELECT period FROM orders LIMIT 1").get();
+} catch (e) { /* period 欄位不存在，沒關係 */ }
+
+// 遷移: orders.group_id
+try {
+  db.prepare("SELECT group_id FROM orders LIMIT 1").get();
 } catch (e) {
-  db.exec("ALTER TABLE orders ADD COLUMN period INTEGER NOT NULL DEFAULT 1");
-  console.log('已新增 orders.period 欄位');
+  db.exec("ALTER TABLE orders ADD COLUMN group_id TEXT DEFAULT ''");
+  console.log('已新增 orders.group_id 欄位');
+}
+
+// 遷移: orders.note
+try {
+  db.prepare("SELECT note FROM orders LIMIT 1").get();
+} catch (e) {
+  db.exec("ALTER TABLE orders ADD COLUMN note TEXT DEFAULT ''");
+  console.log('已新增 orders.note 欄位');
+}
+
+// 遷移: order_items.note
+try {
+  db.prepare("SELECT note FROM order_items LIMIT 1").get();
+} catch (e) {
+  db.exec("ALTER TABLE order_items ADD COLUMN note TEXT DEFAULT ''");
+  console.log('已新增 order_items.note 欄位');
+}
+
+// 遷移: daily_menus.group_id
+try {
+  db.prepare("SELECT group_id FROM daily_menus LIMIT 1").get();
+} catch (e) {
+  db.exec("ALTER TABLE daily_menus ADD COLUMN group_id TEXT DEFAULT ''");
+  console.log('已新增 daily_menus.group_id 欄位');
 }
 
 /* ===== 工具函式 ===== */
@@ -168,31 +212,78 @@ app.get('/api/vendors/:id', (req, res) => {
   res.json(vendor);
 });
 
+/* ===== 開團 API ===== */
+app.get('/api/groups/:date', (req, res) => {
+  const rows = db.prepare('SELECT * FROM groups WHERE date = ? ORDER BY sort_order, rowid').all(req.params.date);
+  res.json(rows);
+});
+
+app.post('/api/groups/:date', (req, res) => {
+  const { name } = req.body;
+  if (!name) return res.status(400).json({ error: '請輸入開團名稱' });
+  const id = genId();
+  const maxOrder = db.prepare('SELECT COALESCE(MAX(sort_order), 0) as m FROM groups WHERE date = ?').get(req.params.date).m;
+  db.prepare('INSERT INTO groups (id, date, name, sort_order) VALUES (?, ?, ?, ?)').run(id, req.params.date, name, maxOrder + 1);
+  res.json({ id, date: req.params.date, name, sort_order: maxOrder + 1, vendor_id: '', deadline: '', menu_image: '', closed: 0 });
+});
+
+app.put('/api/groups/:id', (req, res) => {
+  const group = db.prepare('SELECT * FROM groups WHERE id = ?').get(req.params.id);
+  if (!group) return res.status(404).json({ error: '團不存在' });
+  const u = req.body;
+  if (u.name !== undefined) db.prepare('UPDATE groups SET name = ? WHERE id = ?').run(u.name, req.params.id);
+  if (u.vendor_id !== undefined) db.prepare('UPDATE groups SET vendor_id = ? WHERE id = ?').run(u.vendor_id, req.params.id);
+  if (u.deadline !== undefined) db.prepare('UPDATE groups SET deadline = ? WHERE id = ?').run(u.deadline, req.params.id);
+  if (u.menu_image !== undefined) db.prepare('UPDATE groups SET menu_image = ? WHERE id = ?').run(u.menu_image, req.params.id);
+  if (u.closed !== undefined) db.prepare('UPDATE groups SET closed = ? WHERE id = ?').run(u.closed ? 1 : 0, req.params.id);
+  if (u.sort_order !== undefined) db.prepare('UPDATE groups SET sort_order = ? WHERE id = ?').run(u.sort_order, req.params.id);
+  res.json({ ok: true });
+});
+
+app.delete('/api/groups/:id', (req, res) => {
+  // 刪除團下的菜單和訂單
+  db.prepare('DELETE FROM daily_menus WHERE group_id = ?').run(req.params.id);
+  const orderIds = db.prepare('SELECT id FROM orders WHERE group_id = ?').all(req.params.id).map(r => r.id);
+  orderIds.forEach(oid => {
+    db.prepare('DELETE FROM order_items WHERE order_id = ?').run(oid);
+  });
+  db.prepare('DELETE FROM orders WHERE group_id = ?').run(req.params.id);
+  db.prepare('DELETE FROM groups WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
+});
+
 /* ===== 每日菜單 API ===== */
 app.get('/api/menu/:date', (req, res) => {
-  const rows = db.prepare('SELECT * FROM daily_menus WHERE date = ?').all(req.params.date);
+  const groupId = req.query.group_id || '';
+  let rows;
+  if (groupId) {
+    rows = db.prepare('SELECT * FROM daily_menus WHERE date = ? AND group_id = ?').all(req.params.date, groupId);
+  } else {
+    rows = db.prepare('SELECT * FROM daily_menus WHERE date = ?').all(req.params.date);
+  }
   res.json(rows);
 });
 
 app.post('/api/menu/:date', (req, res) => {
-  const { items } = req.body; // array of { name, price }
-  // 清除舊菜單再寫入
-  db.prepare('DELETE FROM daily_menus WHERE date = ?').run(req.params.date);
-  const insert = db.prepare('INSERT INTO daily_menus (id, date, name, price) VALUES (?, ?, ?, ?)');
+  const { items, group_id } = req.body;
+  const gid = group_id || '';
+  db.prepare('DELETE FROM daily_menus WHERE date = ? AND group_id = ?').run(req.params.date, gid);
+  const insert = db.prepare('INSERT INTO daily_menus (id, date, name, price, group_id) VALUES (?, ?, ?, ?, ?)');
   const result = [];
   items.forEach(item => {
     const id = item.id || genId();
-    insert.run(id, req.params.date, item.name, item.price);
-    result.push({ id, date: req.params.date, name: item.name, price: item.price });
+    insert.run(id, req.params.date, item.name, item.price, gid);
+    result.push({ id, date: req.params.date, name: item.name, price: item.price, group_id: gid });
   });
   res.json(result);
 });
 
 app.post('/api/menu/:date/item', (req, res) => {
-  const { name, price } = req.body;
+  const { name, price, group_id } = req.body;
+  const gid = group_id || '';
   const id = genId();
-  db.prepare('INSERT INTO daily_menus (id, date, name, price) VALUES (?, ?, ?, ?)').run(id, req.params.date, name, price);
-  res.json({ id, date: req.params.date, name, price });
+  db.prepare('INSERT INTO daily_menus (id, date, name, price, group_id) VALUES (?, ?, ?, ?, ?)').run(id, req.params.date, name, price, gid);
+  res.json({ id, date: req.params.date, name, price, group_id: gid });
 });
 
 app.delete('/api/menu/:date/:id', (req, res) => {
@@ -202,10 +293,10 @@ app.delete('/api/menu/:date/:id', (req, res) => {
 
 /* ===== 訂單 API ===== */
 app.get('/api/orders/:date', (req, res) => {
-  const period = req.query.period ? parseInt(req.query.period) : null;
+  const groupId = req.query.group_id;
   let orders;
-  if (period) {
-    orders = db.prepare('SELECT * FROM orders WHERE date = ? AND period = ?').all(req.params.date, period);
+  if (groupId) {
+    orders = db.prepare('SELECT * FROM orders WHERE date = ? AND group_id = ?').all(req.params.date, groupId);
   } else {
     orders = db.prepare('SELECT * FROM orders WHERE date = ?').all(req.params.date);
   }
@@ -215,39 +306,46 @@ app.get('/api/orders/:date', (req, res) => {
   orders.forEach(o => {
     o.employeeId = o.employee_id;
     o.employeeName = o.employee_name;
+    o.groupId = o.group_id;
     o.createdAt = o.created_at;
     o.items = allItems.filter(i => i.order_id === o.id).map(i => ({
       menuItemId: i.menu_item_id,
       name: i.name,
       price: i.price,
-      qty: i.qty
+      qty: i.qty,
+      note: i.note || ''
     }));
   });
   res.json(orders);
 });
 
 app.post('/api/orders/:date', (req, res) => {
-  const { employeeId, employeeName, floor, items, total, period } = req.body;
+  const { employeeId, employeeName, floor, items, total, group_id, note } = req.body;
   const id = genId();
   const createdAt = new Date().toISOString();
+  const gid = group_id || '';
+  const orderNote = note || '';
   db.prepare(
-    'INSERT INTO orders (id, date, employee_id, employee_name, floor, period, total, paid, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)'
-  ).run(id, req.params.date, employeeId, employeeName, floor, period || 1, total, createdAt);
-  const insert = db.prepare('INSERT INTO order_items (order_id, menu_item_id, name, price, qty) VALUES (?, ?, ?, ?, ?)');
-  items.forEach(it => insert.run(id, it.menuItemId, it.name, it.price, it.qty));
-  res.json({ id, employeeId, employeeName, floor, period: period || 1, items, total, paid: false, createdAt });
+    'INSERT INTO orders (id, date, employee_id, employee_name, floor, group_id, note, total, paid, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)'
+  ).run(id, req.params.date, employeeId, employeeName, floor, gid, orderNote, total, createdAt);
+  const insert = db.prepare('INSERT INTO order_items (order_id, menu_item_id, name, price, qty, note) VALUES (?, ?, ?, ?, ?, ?)');
+  items.forEach(it => insert.run(id, it.menuItemId, it.name, it.price, it.qty, it.note || ''));
+  res.json({ id, employeeId, employeeName, floor, groupId: gid, note: orderNote, items, total, paid: false, createdAt });
 });
 
 app.put('/api/orders/:date/:id', (req, res) => {
-  const { items, total } = req.body;
+  const { items, total, note } = req.body;
   if (items !== undefined && total !== undefined) {
     db.prepare('UPDATE orders SET total = ? WHERE id = ?').run(total, req.params.id);
     db.prepare('DELETE FROM order_items WHERE order_id = ?').run(req.params.id);
-    const insert = db.prepare('INSERT INTO order_items (order_id, menu_item_id, name, price, qty) VALUES (?, ?, ?, ?, ?)');
-    items.forEach(it => insert.run(req.params.id, it.menuItemId, it.name, it.price, it.qty));
+    const insert = db.prepare('INSERT INTO order_items (order_id, menu_item_id, name, price, qty, note) VALUES (?, ?, ?, ?, ?, ?)');
+    items.forEach(it => insert.run(req.params.id, it.menuItemId, it.name, it.price, it.qty, it.note || ''));
   }
   if (req.body.paid !== undefined) {
     db.prepare('UPDATE orders SET paid = ? WHERE id = ?').run(req.body.paid ? 1 : 0, req.params.id);
+  }
+  if (note !== undefined) {
+    db.prepare('UPDATE orders SET note = ? WHERE id = ?').run(note, req.params.id);
   }
   res.json({ ok: true });
 });
@@ -269,7 +367,7 @@ app.get('/api/order-dates', (req, res) => {
   res.json(rows.map(r => r.date));
 });
 
-/* ===== 每日設定 API（截止時間、商家、菜單圖片） ===== */
+/* ===== 每日設定 API（保留向下相容） ===== */
 app.get('/api/settings/:date', (req, res) => {
   const rows = db.prepare('SELECT key, value FROM daily_settings WHERE date = ?').all(req.params.date);
   const settings = {};
