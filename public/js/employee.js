@@ -240,8 +240,7 @@ async function checkDeadline() {
 async function renderMenuImage() {
   const section = document.getElementById('menuImageSection');
   const img = document.getElementById('menuImageDisplay');
-  const group = groups.find(g => g.id === currentGroupId);
-  const dataUrl = group ? group.menu_image : '';
+  const dataUrl = currentGroupId ? await DB.getGroupImage(currentGroupId) : '';
 
   if (dataUrl) {
     img.src = dataUrl;

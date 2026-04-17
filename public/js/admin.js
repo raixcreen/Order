@@ -349,8 +349,7 @@ async function reopenAction() {
 /* ========== 菜單圖片管理 ========== */
 async function renderMenuImage() {
   if (!selectedGroupId) return;
-  const group = groups.find(g => g.id === selectedGroupId);
-  const dataUrl = group ? group.menu_image : '';
+  const dataUrl = await DB.getGroupImage(selectedGroupId);
   const preview = document.getElementById('menuImgPreview');
   const uploadZone = document.getElementById('menuImgUploadZone');
 

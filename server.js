@@ -214,8 +214,13 @@ app.get('/api/vendors/:id', (req, res) => {
 
 /* ===== 開團 API ===== */
 app.get('/api/groups/:date', (req, res) => {
-  const rows = db.prepare('SELECT * FROM groups WHERE date = ? ORDER BY sort_order, rowid').all(req.params.date);
+  const rows = db.prepare('SELECT id, date, name, sort_order, vendor_id, deadline, closed FROM groups WHERE date = ? ORDER BY sort_order, rowid').all(req.params.date);
   res.json(rows);
+});
+
+app.get('/api/group-image/:id', (req, res) => {
+  const row = db.prepare('SELECT menu_image FROM groups WHERE id = ?').get(req.params.id);
+  res.json({ menu_image: row ? row.menu_image || '' : '' });
 });
 
 app.post('/api/groups/:date', (req, res) => {
