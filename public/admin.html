@@ -19,24 +19,23 @@
 
   <div class="container">
 
-    <!-- ===== 日期選擇 ===== -->
-    <div class="card">
-      <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
-        <label style="font-weight:700; margin:0;">日期：</label>
-        <input type="date" id="dateInput" class="form-control" style="width:auto;">
-        <button class="btn btn-outline btn-sm" onclick="goToday()">今天</button>
-      </div>
-    </div>
-
     <!-- ===== 開團管理 ===== -->
     <div class="card">
       <div class="card-title">
         <span class="icon">&#128227;</span>
         <span>開團管理</span>
       </div>
-      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; align-items:center;">
         <input type="text" id="newGroupName" class="form-control" placeholder="團名（如：午餐、飲料、下午茶）" style="flex:2; min-width:160px;">
+        <label style="font-weight:700; margin:0; white-space:nowrap;">取餐日：</label>
+        <input type="date" id="newGroupDate" class="form-control" style="width:auto;">
         <button class="btn btn-primary" onclick="addGroupAction()">新增開團</button>
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:16px;">
+        <label style="font-weight:700; margin:0; white-space:nowrap;">查詢過去：</label>
+        <input type="date" id="historyDate" class="form-control" style="width:auto;">
+        <button class="btn btn-outline btn-sm" onclick="queryHistory()">查詢</button>
+        <button class="btn btn-ghost btn-sm" id="backToCurrentBtn" onclick="backToCurrent()" style="display:none;">回目前</button>
       </div>
       <div id="groupTabs" class="group-tabs" style="margin-bottom:0;"></div>
       <div id="noGroupAdmin" style="display:none; padding:16px 0; text-align:center; color:var(--gray-400); font-size:.9rem;">
@@ -56,7 +55,7 @@
         </div>
         <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:12px;">
           <label style="font-weight:700; margin:0;">點餐截止：</label>
-          <input type="time" id="deadlineInput" class="form-control" style="width:auto;">
+          <input type="datetime-local" id="deadlineInput" class="form-control" style="width:auto;">
           <button class="btn btn-primary btn-sm" onclick="saveDeadlineAction()">設定截止時間</button>
           <button class="btn btn-danger btn-sm" onclick="cutoffNowAction()">提前截止</button>
           <button class="btn btn-outline btn-sm" onclick="reopenAction()">重新開放</button>

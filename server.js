@@ -218,6 +218,25 @@ app.get('/api/groups/:date', (req, res) => {
   res.json(rows);
 });
 
+// 取得「即將開團」：取餐日 >= 今天的所有團（供員工提前點餐）
+app.get('/api/upcoming-groups', (req, res) => {
+  const today = todayStr();
+  const rows = db.prepare(
+    'SELECT id, date, name, sort_order, vendor_id, deadline, closed FROM groups WHERE date >= ? ORDER BY date, sort_order, rowid'
+  ).all(today);
+  res.json(rows);
+});
+
+// 取得「近期 N 團」：不分截止與否，給員工瀏覽近期的團（預設 5 團）
+app.get('/api/recent-groups', (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 5, 50);
+  const rows = db.prepare(
+    'SELECT id, date, name, sort_order, vendor_id, deadline, closed FROM groups ORDER BY date DESC, sort_order DESC, rowid DESC LIMIT ?'
+  ).all(limit);
+  rows.reverse(); // 由舊到新顯示
+  res.json(rows);
+});
+
 app.get('/api/group-image/:id', (req, res) => {
   const row = db.prepare('SELECT menu_image FROM groups WHERE id = ?').get(req.params.id);
   res.json({ menu_image: row ? row.menu_image || '' : '' });
