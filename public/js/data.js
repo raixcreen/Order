@@ -51,7 +51,7 @@ const DB = {
   async getUpcomingGroups() {
     return cachedFetch(`${API}/api/upcoming-groups`);
   },
-  async getRecentGroups(limit = 5) {
+  async getRecentGroups(limit = 3) {
     return cachedFetch(`${API}/api/recent-groups?limit=${limit}`);
   },
   async getGroupImage(groupId) {

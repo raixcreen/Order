@@ -227,9 +227,9 @@ app.get('/api/upcoming-groups', (req, res) => {
   res.json(rows);
 });
 
-// 取得「近期 N 團」：不分截止與否，給員工瀏覽近期的團（預設 5 團）
+// 取得「近期 N 團」：不分截止與否，給員工瀏覽近期的團（預設 3 團）
 app.get('/api/recent-groups', (req, res) => {
-  const limit = Math.min(parseInt(req.query.limit) || 5, 50);
+  const limit = Math.min(parseInt(req.query.limit) || 3, 50);
   const rows = db.prepare(
     'SELECT id, date, name, sort_order, vendor_id, deadline, closed FROM groups ORDER BY date DESC, sort_order DESC, rowid DESC LIMIT ?'
   ).all(limit);

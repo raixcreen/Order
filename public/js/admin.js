@@ -17,7 +17,7 @@ function selectedGroupDate() {
   return g ? g.date : todayStr();
 }
 
-// 依目前檢視模式載入團清單：預設「近期 5 團（含已截止）」，或查詢指定歷史日期
+// 依目前檢視模式載入團清單：預設「近期 3 團（含已截止）」，或查詢指定歷史日期
 async function reloadGroups() {
   groups = viewDate ? await DB.getGroups(viewDate) : await DB.getRecentGroups();
 }
